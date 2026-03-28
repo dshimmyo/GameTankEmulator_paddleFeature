@@ -106,10 +106,12 @@ else #BSD/Linux
 	OPTIM_FLAGS = -O2
 	LINKER_FLAGS = `sdl2-config --libs`
 endif
+
 # Add macOS SDK headers if on Darwin
 ifeq ($(OS), Darwin)
     COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
 endif
+
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
 
 #This is the target that compiles our executable
