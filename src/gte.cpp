@@ -1461,8 +1461,12 @@ int main(int argC, char* argV[]) {
             if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
 
             // 3. Update the joystick state (Port 0)
-            //joysticks->SetJoystickState(0, paddle_state);
 			joysticks->SetHeldButtons(paddle_state);
+			if (paddle_emulation_enabled && !showMenu) {
+				SDL_SetRelativeMouseMode(SDL_TRUE); // Hides cursor and tracks relative movement
+			} else {
+				SDL_SetRelativeMouseMode(SDL_FALSE); // Shows cursor for menu navigation
+			}
         }
 
 		mainloop(0, NULL);
