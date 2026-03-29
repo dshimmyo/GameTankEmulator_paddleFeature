@@ -104,7 +104,12 @@
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
     </div>
     <hr/>
-
+    <button id="paddle-fab" onclick="togglePaddleMode()" 
+            style="position: fixed; bottom: 20px; left: 50%; z-index: 1000; 
+                   background: #444; color: #fff; border: 2px solid #888; 
+                   padding: 8px 12px; font-family: monospace; cursor: pointer;">
+        PADDLE: OFF
+    </button>
     <div class="emscripten landscapeOnly">
       <div style="padding: 10px; color: white; background: rgba(0,0,0,0.5); display: inline-block;">
           <label for="paddleToggle" style="cursor: pointer; display: flex; align-items: center;">
@@ -148,6 +153,24 @@
 
     <script type='text/javascript'>
       const canvas = document.getElementById('canvas');
+
+      window.paddleModeEnabled = false;
+
+      function togglePaddleMode() {
+          window.paddleModeEnabled = !window.paddleModeEnabled;
+          const btn = document.getElementById('paddle-fab');
+          
+          // Sync with C++
+          if (typeof Module.ccall !== 'undefined') {
+              Module.ccall('SetPaddleMode', null, ['boolean'], [window.paddleModeEnabled]);
+          }
+
+          // Visual feedback
+          btn.innerText = "PADDLE: " + (window.paddleModeEnabled ? "ON" : "OFF");
+          btn.style.borderColor = window.paddleModeEnabled ? "#0f0" : "#888";
+          btn.style.backgroundColor = window.paddleModeEnabled ? "#222" : "#444";
+      }
+
       canvas.addEventListener('mousemove', function(e) {
           // Only run if the module is ready and paddle mode is toggled
           if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
@@ -169,6 +192,8 @@
               Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
           }
       }, { passive: false });
+
+
       
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
