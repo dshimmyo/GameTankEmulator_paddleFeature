@@ -717,11 +717,11 @@ extern "C" {
 		EMSCRIPTEN_KEEPALIVE
 		void SetPaddleMode(bool enabled) {
 			paddle_emulation_enabled = enabled;
-			if (enabled) {
-				SDL_SetRelativeMouseMode(SDL_TRUE);
-			} else {
-				SDL_SetRelativeMouseMode(SDL_FALSE);
-			}
+			// if (enabled) {
+			// 	SDL_SetRelativeMouseMode(SDL_TRUE);
+			// } else {
+			// 	SDL_SetRelativeMouseMode(SDL_FALSE);
+			// }
 		}
 	}
 	#endif
@@ -1065,11 +1065,11 @@ EM_BOOL mainloop(double time, void* userdata) {
         SDL_GetWindowSize(mainWindow, &winW, &winH);
         
         // Handle cursor visibility/locking
-        if (!showMenu) {
-            SDL_SetRelativeMouseMode(SDL_TRUE);
-        } else {
-            SDL_SetRelativeMouseMode(SDL_FALSE);
-        }
+        // if (!showMenu) {
+        //     SDL_SetRelativeMouseMode(SDL_TRUE);
+        // } else {
+        //     SDL_SetRelativeMouseMode(SDL_FALSE);
+        // }
         
         // Call your modularized adapter function
         joysticks->UpdatePaddleFromMouse(0, mx, winW);
