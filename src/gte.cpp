@@ -711,6 +711,20 @@ extern "C" {
 		SDL_SaveBMP(screenshot, "screenshot.bmp");
 		SDL_FreeSurface(screenshot);
 	}
+
+#ifdef WASM_BUILD
+	extern "C" {
+		EMSCRIPTEN_KEEPALIVE
+		void SetPaddleMode(bool enabled) {
+			paddle_emulation_enabled = enabled;
+			if (enabled) {
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+			} else {
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+			}
+		}
+	}
+	#endif
 }
 #ifndef WASM_BUILD
 template <typename T>
