@@ -85,35 +85,51 @@
         .landscapeOnly {
           display:none;
         }
+
+        #paddle-fab {
+        display: block !important; /* Force it to show when in portrait */
+        }
       }
-  /* Default: Hide the button (Desktop/Landscape) */
+      /* 1. Default: Hide the button (Desktop/Landscape) */
       #paddle-fab {
-          display: none;
+          display: none; 
+          position: fixed; 
+          bottom: 30px; 
+          left: 50%; 
+          transform: translateX(-50%); 
+          z-index: 2000;
+          background: #222; 
+          color: #0f0; 
+          border: 3px solid #0f0;
+          padding: 15px 30px; 
+          font-family: monospace; 
+          font-size: 20px; 
+          font-weight: bold; 
+          border-radius: 50px; 
+          cursor: pointer; 
+          white-space: nowrap; 
+          box-shadow: 0px 4px 15px rgba(0,0,0,0.8);
       }
 
-      /* Only show on Mobile-sized screens in Portrait */
-      @media screen and (max-width: 768px) and (orientation: portrait) {
-          #paddle-fab {
-              display: block;
-              position: fixed;
-              bottom: 30px; 
-              left: 50%;
-              transform: translateX(-50%);
-              z-index: 2000;
-              
-              background: #222;
-              color: #0f0;
-              border: 3px solid #0f0;
-              padding: 15px 30px;
-              font-family: monospace;
-              font-size: 20px;
-              font-weight: bold;
-              border-radius: 50px;
-              cursor: pointer;
-              white-space: nowrap;
-              box-shadow: 0px 4px 15px rgba(0,0,0,0.8);
-          }
+      @media only screen and (orientation:portrait) {
+        #canvas {
+            width: 100%;
+        }
+
+        html {
+          background-color: #DF7F1F;
+        }
+
+        .landscapeOnly {
+          display:none;
+        }
+
+        /* 2. Show it ONLY in portrait */
+        #paddle-fab {
+          display: block !important; 
+        }
       }
+      
     </style>
   </head>
   <body>
