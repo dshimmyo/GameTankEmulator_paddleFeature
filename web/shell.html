@@ -147,6 +147,29 @@
     </div>
 
     <script type='text/javascript'>
+      const canvas = document.getElementById('canvas');
+      canvas.addEventListener('mousemove', function(e) {
+          // Only run if the module is ready and paddle mode is toggled
+          if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
+              const rect = canvas.getBoundingClientRect();
+              let x = (e.clientX - rect.left) / rect.width;
+              let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
+              
+              Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+          }
+      });
+      canvas.addEventListener('touchmove', function(e) {
+          if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
+              e.preventDefault();
+              const rect = canvas.getBoundingClientRect();
+              const touch = e.touches[0];
+              let x = (touch.clientX - rect.left) / rect.width;
+              let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
+              
+              Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+          }
+      }, { passive: false });
+      
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');
