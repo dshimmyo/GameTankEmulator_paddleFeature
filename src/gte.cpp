@@ -1442,35 +1442,17 @@ int main(int argC, char* argV[]) {
 #else
 	SDL_RaiseWindow(mainWindow);
 	while(running) {
-
-        if (paddle_emulation_enabled) {
-            int mx, my, winW, winH;
-            SDL_GetMouseState(&mx, &my);
-            SDL_GetWindowSize(mainWindow, &winW, &winH);
-
-            // 1. Calculate the 8-bit position (0-255) and invert it
-            uint8_t p = ~((uint8_t)((mx * 255) / winW));
-
-            // 2. Map the bits to your custom 16-bit mask
-            uint16_t paddle_state = 0;
-            if (p & 0x01) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_UP;
-            if (p & 0x02) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_DOWN;
-            if (p & 0x04) paddle_state |= GameTankButtons::GamepadButtonMask::LEFT;
-            if (p & 0x08) paddle_state |= GameTankButtons::GamepadButtonMask::RIGHT;
-            if (p & 0x10) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_X;
-            if (p & 0x20) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Y;
-            if (p & 0x40) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Z;
-            if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
-
-            // 3. Update the joystick state (Port 0)
-			joysticks->SetHeldButtons(paddle_state);
+		if (paddle_emulation_enabled) {
+			int mx, my, winW, winH;
+			SDL_GetMouseState(&mx, &my);
+			SDL_GetWindowSize(mainWindow, &winW, &winH);
 			if (paddle_emulation_enabled && !showMenu) {
 				SDL_SetRelativeMouseMode(SDL_TRUE); // Hides cursor and tracks relative movement
 			} else {
 				SDL_SetRelativeMouseMode(SDL_FALSE); // Shows cursor for menu navigation
 			}
-        }
-
+			joysticks->UpdatePaddleFromMouse(0, mx, winW);
+		}
 		mainloop(0, NULL);
 	}
 	joysticks->SaveBindings();

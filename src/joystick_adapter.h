@@ -81,4 +81,5 @@ public:
 	void SaveBindings();
 	void Reset();
 	bool CheckSystemButtonPressed();
+	void UpdatePaddleFromMouse(int player, int mouseX, int windowWidth);
 };
