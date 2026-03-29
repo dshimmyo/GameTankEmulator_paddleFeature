@@ -109,7 +109,13 @@
       <input type="button" id="loadimg" value="Open ROM" onclick="document.getElementById('RomFileInput').click();" />
       <input type="button" id="downloadROM" value="Download ROM" onclick="goDownloadRom();"/>
 
-
+        <div class="paddle-controls" style="color: white; margin: 10px;">
+                    <label>
+                        <input type="checkbox" onchange="Module.ccall('SetPaddleMode', null, ['boolean'], [this.checked])">
+                        Use Mouse as Paddle
+                    </label>
+                </div>
+        </form>
       <div class="editonly">
         <form action="../../games/api/update.php" method="POST">
             <input type="hidden" id="gameId" name="id">
@@ -127,9 +133,8 @@
                 <input type="radio" id="published" name="visibility" value="1">
                 <label for="published">Published</label>
             </div>
-    
             <button type="submit">Submit</button>
-        </form>
+
 
         <button id="screenshotUpload" onclick=>Update screenshot</button>
 
