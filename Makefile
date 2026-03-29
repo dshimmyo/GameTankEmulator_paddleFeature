@@ -109,7 +109,9 @@ endif
 
 # Add macOS SDK headers if on Darwin
 ifeq ($(OS), Darwin)
-    COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
+	ifneq ($(OS), wasm)
+    	COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
+	endif
 endif
 
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
