@@ -1045,7 +1045,21 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #endif
-
+	if (paddle_emulation_enabled) {
+        int mx, my, winW, winH;
+        SDL_GetMouseState(&mx, &my);
+        SDL_GetWindowSize(mainWindow, &winW, &winH);
+        
+        // Handle cursor visibility/locking
+        if (!showMenu) {
+            SDL_SetRelativeMouseMode(SDL_TRUE);
+        } else {
+            SDL_SetRelativeMouseMode(SDL_FALSE);
+        }
+        
+        // Call your modularized adapter function
+        joysticks->UpdatePaddleFromMouse(0, mx, winW);
+    }
 #ifdef WRAPPER_MODE
 	if(!paused && !showMenu) {
 #else
@@ -1442,17 +1456,6 @@ int main(int argC, char* argV[]) {
 #else
 	SDL_RaiseWindow(mainWindow);
 	while(running) {
-		if (paddle_emulation_enabled) {
-			int mx, my, winW, winH;
-			SDL_GetMouseState(&mx, &my);
-			SDL_GetWindowSize(mainWindow, &winW, &winH);
-			if (paddle_emulation_enabled && !showMenu) {
-				SDL_SetRelativeMouseMode(SDL_TRUE); // Hides cursor and tracks relative movement
-			} else {
-				SDL_SetRelativeMouseMode(SDL_FALSE); // Shows cursor for menu navigation
-			}
-			joysticks->UpdatePaddleFromMouse(0, mx, winW);
-		}
 		mainloop(0, NULL);
 	}
 	joysticks->SaveBindings();
