@@ -156,19 +156,19 @@
     </div>
     <hr/>
     <div id="paddle-controls-container">
-        <button class="paddle-sub-btn" 
-                onmousedown="sendButton(0b0000000000100000, true)" 
-                onmouseup="sendButton(0b0000000000100000, false)"
-                ontouchstart="sendButton(0b0000000000100000, true)" 
-                ontouchend="sendButton(0b0000000000100000, false)">START</button>
+        <button class="paddle-sub-btn"  
+        onmousedown="sendButton(13, true)"  
+        onmouseup="sendButton(13, false)"
+        ontouchstart="sendButton(13, true)"  
+        ontouchend="sendButton(13, false)">START</button>
                 
         <button id="paddle-fab" onclick="togglePaddleMode()">PADDLE: OFF</button>
         
         <button class="paddle-sub-btn red-btn" 
-                onmousedown="sendButton(0b0010000000000000, true)" 
-                onmouseup="sendButton(0b0010000000000000, false)"
-                ontouchstart="sendButton(0b0010000000000000, true)" 
-                ontouchend="sendButton(0b0010000000000000, false)">A</button>
+        onmousedown="sendButton(90, true)" 
+        onmouseup="sendButton(90, false)"
+        ontouchstart="sendButton(90, true)" 
+        ontouchend="sendButton(90, false)">A</button>
     </div>
     <div class="emscripten landscapeOnly">
       <div style="padding: 10px; color: white; background: rgba(0,0,0,0.5); display: inline-block;">
@@ -218,13 +218,16 @@
       var touchedMask = 0; 
       var touchIds = [];
 
-      function sendButton(mask, isPressed) {
-            if (typeof Module.ccall !== 'undefined') {
-                if (isPressed) { touchedMask |= mask; } 
-                else { touchedMask &= ~mask; }
-                Module.ccall('SetButtons', null, ["int"], [touchedMask]);
-            }
-        }
+      function sendButton(keyCode, isPressed) {
+          // 90 is 'Z' (A Button), 13 is 'Enter' (Start)
+          const eventType = isPressed ? 'keydown' : 'keyup';
+          const event = new KeyboardEvent(eventType, {
+              keyCode: keyCode,
+              which: keyCode,
+              bubbles: true
+          });
+          canvas.dispatchEvent(event);
+      }
 
         function togglePaddleMode() {
             window.paddleModeEnabled = !window.paddleModeEnabled;
