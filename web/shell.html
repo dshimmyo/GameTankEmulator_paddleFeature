@@ -67,6 +67,7 @@
           flex-direction: row;
           gap: 12px;
           align-items: center;
+          pointer-events: none; /* The container itself ignores clicks */
       }
 
       /* The Main Toggle Button */
@@ -82,6 +83,7 @@
           cursor: pointer;
           box-shadow: 0px 4px 15px rgba(0,0,0,0.8);
           white-space: nowrap;
+          pointer-events: auto; /* The buttons inside specifically accept clicks */
       }
 
       /* The Arcade Buttons inside the HUD */
@@ -97,6 +99,7 @@
           font-weight: bold;
           cursor: pointer;
           box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+          pointer-events: auto; /* The buttons inside specifically accept clicks */
       }
       .paddle-sub-btn.red-btn { background: #444; border-color: #fff; }
 
@@ -157,14 +160,14 @@
     <hr/>
     <div id="paddle-controls-container">
         <button class="paddle-sub-btn" 
-                onclick="sendButton(0b0000000000100000, true); setTimeout(() => sendButton(0b0000000000100000, false), 100);">
+                onclick="sendButton(32, true); setTimeout(() => sendButton(32, false), 100);">
                 START
         </button>
                 
         <button id="paddle-fab" onclick="togglePaddleMode()">PADDLE: OFF</button>
         
         <button class="paddle-sub-btn red-btn" 
-                onclick="sendButton(0b0000000000010000, true); setTimeout(() => sendButton(0b0000000000010000, false), 100);">
+                onclick="sendButton(16, true); setTimeout(() => sendButton(16, false), 100);">
                 A
         </button>
     </div>
@@ -216,19 +219,28 @@
       var touchedMask = 0; 
       var touchIds = [];
 
-        function sendButton(mask, isPressed, event) {
-            if (event) event.preventDefault(); // Prevents "ghost clicks" on mobile
-            
-            if (isPressed) {
-                touchedMask |= mask;
-            } else {
-                touchedMask &= ~mask;
-            }
-            
-            if (typeof Module.ccall !== 'undefined') {
-                Module.ccall('SetButtons', null, ["int"], [touchedMask]);
-            }
-        }
+      window.sendButton = function(mask, isPressed, event) {
+          // 1. Prevent the button from 'stealing' the interaction
+          if (event) {
+              event.preventDefault();
+              event.stopPropagation();
+          }
+
+          if (isPressed) { 
+              touchedMask |= mask; 
+          } else { 
+              touchedMask &= ~mask; 
+          }
+
+          if (typeof Module.ccall !== 'undefined') {
+              Module.ccall('SetButtons', null, ["int"], [touchedMask]);
+              
+              // 2. THE FIX: Force focus back to the game canvas
+              // This ensures the 6502 engine sees the '16' in its next poll
+              const canvas = document.getElementById('canvas') || document.querySelector('canvas');
+              if (canvas) canvas.focus();
+          }
+      };
 
         function togglePaddleMode() {
             window.paddleModeEnabled = !window.paddleModeEnabled;
@@ -470,7 +482,8 @@
 
       Module.onRuntimeInitialized = function() {
 
-        // Helper to handle both Mouse and Touch
+        let lastBit = 0; // Track the bit pressed by the image
+
         function handleGamepadInput(e, isPressed) {
             if (window.paddleModeEnabled) return;
             e.preventDefault();
@@ -483,14 +496,16 @@
             const top = 3 - Math.floor(inputscale * (rect.bottom - clientY));
             const lef = Math.floor(inputscale * (clientX - rect.left));
 
-            // Boundary check for safety
             if (top >= 0 && top < 4 && lef >= 0 && lef < 7) {
-                const bit = buttonGrid[top][lef];
                 if (isPressed) {
-                    touchedMask |= bit;
+                    lastBit = buttonGrid[top][lef]; // Remember what we pressed
+                    touchedMask |= lastBit;
                 } else {
-                    touchedMask &= ~bit;
+                    touchedMask &= ~lastBit; // Clear the bit we actually pressed
+                    lastBit = 0;
                 }
+                
+                console.log(`[GamepadImage] Final Mask Sent: ${touchedMask}`);
                 Module.ccall('SetButtons', null, ["int"], [touchedMask]);
             }
         }
