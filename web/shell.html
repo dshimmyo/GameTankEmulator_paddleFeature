@@ -51,6 +51,55 @@
         width: 100%;
       }
 
+      .dimmed {
+          opacity: 0.3;
+          transition: opacity 0.2s ease; /* Makes the fade feel smooth */
+      }
+
+    /* THE HUD PILL: Hidden by default (Landscape/Desktop) */
+      #paddle-controls-container {
+          display: none; 
+          position: fixed;
+          bottom: 25px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 3000;
+          flex-direction: row;
+          gap: 12px;
+          align-items: center;
+      }
+
+      /* The Main Toggle Button */
+      #paddle-fab {
+          background: #222;
+          color: #0f0;
+          border: 3px solid #0f0;
+          padding: 12px 20px;
+          font-family: monospace;
+          font-size: 18px;
+          font-weight: bold;
+          border-radius: 40px;
+          cursor: pointer;
+          box-shadow: 0px 4px 15px rgba(0,0,0,0.8);
+          white-space: nowrap;
+      }
+
+      /* The Arcade Buttons inside the HUD */
+      .paddle-sub-btn {
+          display: none; 
+          background: #444;
+          color: #fff;
+          border: 2px solid #888;
+          border-radius: 50%;
+          width: 65px;
+          height: 65px;
+          font-family: monospace;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+      }
+      .paddle-sub-btn.red-btn { background: #444; border-color: #fff; }
+
       select {
           font-size: 50px;
         }
@@ -86,48 +135,7 @@
           display:none;
         }
 
-        #paddle-fab {
-        display: block !important; /* Force it to show when in portrait */
-        }
-      }
-      /* 1. Default: Hide the button (Desktop/Landscape) */
-      #paddle-fab {
-          display: none; 
-          position: fixed; 
-          bottom: 30px; 
-          left: 50%; 
-          transform: translateX(-50%); 
-          z-index: 2000;
-          background: #222; 
-          color: #0f0; 
-          border: 3px solid #0f0;
-          padding: 15px 30px; 
-          font-family: monospace; 
-          font-size: 20px; 
-          font-weight: bold; 
-          border-radius: 50px; 
-          cursor: pointer; 
-          white-space: nowrap; 
-          box-shadow: 0px 4px 15px rgba(0,0,0,0.8);
-      }
-
-      @media only screen and (orientation:portrait) {
-        #canvas {
-            width: 100%;
-        }
-
-        html {
-          background-color: #DF7F1F;
-        }
-
-        .landscapeOnly {
-          display:none;
-        }
-
-        /* 2. Show it ONLY in portrait */
-        #paddle-fab {
-          display: block !important; 
-        }
+        #paddle-controls-container { display: flex; } /* Show HUD on mobile */
       }
       
     </style>
@@ -147,9 +155,21 @@
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
     </div>
     <hr/>
-    <button id="paddle-fab" onclick="togglePaddleMode()">
-        PADDLE: OFF
-    </button>
+    <div id="paddle-controls-container">
+        <button class="paddle-sub-btn" 
+                onmousedown="sendButton(0b0000000000100000, true)" 
+                onmouseup="sendButton(0b0000000000100000, false)"
+                ontouchstart="sendButton(0b0000000000100000, true)" 
+                ontouchend="sendButton(0b0000000000100000, false)">START</button>
+                
+        <button id="paddle-fab" onclick="togglePaddleMode()">PADDLE: OFF</button>
+        
+        <button class="paddle-sub-btn red-btn" 
+                onmousedown="sendButton(0b0010000000000000, true)" 
+                onmouseup="sendButton(0b0010000000000000, false)"
+                ontouchstart="sendButton(0b0010000000000000, true)" 
+                ontouchend="sendButton(0b0010000000000000, false)">A</button>
+    </div>
     <div class="emscripten landscapeOnly">
       <div style="padding: 10px; color: white; background: rgba(0,0,0,0.5); display: inline-block;">
           <label for="paddleToggle" style="cursor: pointer; display: flex; align-items: center;">
@@ -195,58 +215,76 @@
       const canvas = document.getElementById('canvas');
 
       window.paddleModeEnabled = false;
+      var touchedMask = 0; 
+      var touchIds = [];
 
-      function togglePaddleMode() {
-          window.paddleModeEnabled = !window.paddleModeEnabled;
-          const btn = document.getElementById('paddle-fab');
-          
-          // Sync with C++
-          if (typeof Module.ccall !== 'undefined') {
-              Module.ccall('SetPaddleMode', null, ['boolean'], [window.paddleModeEnabled]);
-          }
+      function sendButton(mask, isPressed) {
+            if (typeof Module.ccall !== 'undefined') {
+                if (isPressed) { touchedMask |= mask; } 
+                else { touchedMask &= ~mask; }
+                Module.ccall('SetButtons', null, ["int"], [touchedMask]);
+            }
+        }
 
-          // Visual feedback
-          btn.innerText = "PADDLE: " + (window.paddleModeEnabled ? "ON" : "OFF");
-          btn.style.borderColor = window.paddleModeEnabled ? "#0f0" : "#888";
-          btn.style.backgroundColor = window.paddleModeEnabled ? "#222" : "#444";
-      }
+        function togglePaddleMode() {
+            window.paddleModeEnabled = !window.paddleModeEnabled;
+            const btn = document.getElementById('paddle-fab');
+            const img = document.getElementById('mobileInputImg');
 
-      canvas.addEventListener('mousemove', function(e) {
-          // Only run if the module is ready and paddle mode is toggled
-          if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
-              const rect = canvas.getBoundingClientRect();
-              let x = (e.clientX - rect.left) / rect.width;
-              let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
-              
-              Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
-          }
-      });
-      canvas.addEventListener('touchmove', function(e) {
-          if (!window.paddleModeEnabled) return;
+            // Find all the sub-buttons (START and A)
+            const subBtns = document.querySelectorAll('.paddle-sub-btn');
+            
+            if (typeof Module.ccall !== 'undefined') {
+                Module.ccall('SetPaddleMode', null, ['boolean'], [window.paddleModeEnabled]);
+            }
 
-          const rect = canvas.getBoundingClientRect();
-          const touch = e.touches[0];
+            btn.innerText = "PADDLE: " + (window.paddleModeEnabled ? "ON" : "OFF");
+            btn.style.borderColor = window.paddleModeEnabled ? "#0f0" : "#888";
+            
+            // Toggle visibility of the extra buttons
+            subBtns.forEach(subBtn => {
+                subBtn.style.display = window.paddleModeEnabled ? "block" : "none";
+            });
 
-          // CHECK: Is the finger actually on the game screen?
-          const isInsideCanvas = (
+            // Toggle Dimming of the background gamepad
+            if (window.paddleModeEnabled) {
+                img.classList.add('dimmed');
+            } else {
+                img.classList.remove('dimmed');
+            }
+        }
+
+        // GLOBAL MOUSE TRACKING FOR PADDLE
+        canvas.addEventListener('mousemove', function(e) {
+            if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
+                const rect = canvas.getBoundingClientRect();
+                let x = (e.clientX - rect.left) / rect.width;
+                let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
+                Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+            }
+        });
+
+        // GLOBAL TOUCH TRACKING FOR PADDLE
+        canvas.addEventListener('touchmove', function(e) {
+            if (!window.paddleModeEnabled) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+
+            // We check if we are on the game screen to prevent scrolling
+            const isInsideCanvas = (
               touch.clientX >= rect.left &&
               touch.clientX <= rect.right &&
               touch.clientY >= rect.top &&
               touch.clientY <= rect.bottom
-          );
+            );
 
-          if (isInsideCanvas) {
-              // Only block the browser/buttons if we are touching the screen
-              e.preventDefault();
-              
-              let x = (touch.clientX - rect.left) / rect.width;
-              let paddleVal = Math.max(0, Math.min(1, x)) * 255;
-              
-              Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
-          }
-          // If NOT inside, the event "bubbles" down to the other buttons I hope!
-      }, { passive: false });
-
+            if (isInsideCanvas) {
+                e.preventDefault();
+                let x = (touch.clientX - rect.left) / rect.width;
+                let paddleVal = Math.max(0, Math.min(1, x)) * 255;
+                Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+            }
+        }, { passive: false });
 
       
       var statusElement = document.getElementById('status');
@@ -454,8 +492,7 @@
                         [0, 0b0000010000000100, 0, 0, 0, 0b0000000000010000, 0],
                         [0,0,0,0,0,0,0]];
         var inputScreen = document.getElementById("mobileInputImg");
-        var touchIds = [];
-        var touchedMask = 0;
+        touchedMask = 0;
         inputScreen.ontouchstart = function(ev) {
           ev.preventDefault();
           var inputscale = 4 / ev.targetTouches[0].target.clientHeight;
