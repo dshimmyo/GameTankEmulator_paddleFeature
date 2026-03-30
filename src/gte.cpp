@@ -699,22 +699,9 @@ extern "C" {
 		return 0;
 	}
 
-	// void SetButtons(int buttonMask) {
-	// 	if(joysticks != NULL) {
-	// 		joysticks->SetHeldButtons(buttonMask);
-	// 	}
-	// }c
-
 	void SetButtons(int buttonMask) {
-		// This will show up in the Chrome/Firefox console immediately
-		printf("[C++] SetButtons called with mask: %d\n", buttonMask);
-		
 		if(joysticks != NULL) {
 			joysticks->SetHeldButtons(buttonMask);
-			// Print the internal state after the set
-			printf("[C++] held1Mask is now: %d\n", joysticks->GetHeld1Mask());
-		} else {
-			printf("[C++] ERROR: Joysticks object is NULL!\n");
 		}
 	}
 

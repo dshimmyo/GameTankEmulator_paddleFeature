@@ -231,10 +231,6 @@ void JoystickAdapter::SetHeldButtons(uint16_t heldMask) {
 	held1Mask = heldMask;
 }
 
-uint16_t JoystickAdapter::GetHeld1Mask(){
-	return held1Mask;
-}
-
 void JoystickAdapter::Reset() {
 	pad1State = false;
 	pad2State = false;
