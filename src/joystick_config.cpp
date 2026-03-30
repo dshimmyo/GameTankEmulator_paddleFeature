@@ -282,11 +282,6 @@ void load_joystick_defaults(std::vector<InputBinding> &bindings) {
 
 void JoystickAdapter::UpdatePaddleFromMouse(int player, int mouseX, int windowWidth) {
 
-	// Check if the buttons are still there before the paddle logic runs
-    if (held1Mask & 0x0010) { 
-        printf("[C++] Frame Start: Button A is HIGH\n"); 
-    }
-
     // 1. Calculate the 8-bit position
     uint8_t p = ~((uint8_t)((mouseX * 255) / windowWidth));
 
@@ -310,11 +305,6 @@ void JoystickAdapter::UpdatePaddleFromMouse(int player, int mouseX, int windowWi
 	current &= ~paddle_bits_mask; 
 	current |= (paddle_state & paddle_bits_mask);
 	SetHeldButtons(current);
-	
-	if (!(held1Mask & 0x0010)) {
-        // If this prints, your assignment 'held1Mask = paddle_state' 
-        // is definitely the reason the HUD buttons are disappearing.
-        printf("[C++] Alert: Button A was cleared by paddle update\n");
-    }
+
 }
 
