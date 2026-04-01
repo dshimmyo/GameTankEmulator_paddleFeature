@@ -925,7 +925,9 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
-				ImGui::Checkbox("Paddle", &paddle_emulation_enabled);
+				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
+					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				}
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1012,10 +1014,7 @@ void refreshScreen() {
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
 			ImGui::Separator(); // Adds a nice visual line
 			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
-				if (!paddle_emulation_enabled) {
-					// Clean up: Zero out the buttons if we turn it off
-					joysticks->SetHeldButtons(0, 0);
-				}
+				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
 			ImGui::EndMenu();
 		}
