@@ -175,8 +175,8 @@
       <div style="padding: 10px; color: white; background: rgba(0,0,0,0.5); display: inline-block;">
           <label for="paddleToggle" style="cursor: pointer; display: flex; align-items: center;">
               <input type="checkbox" id="paddleToggle" 
-                     onchange="Module.ccall('SetPaddleMode', null, ['boolean'], [this.checked])" 
-                     style="margin-right: 10px;">
+               onchange="window.paddleModeEnabled = this.checked; Module.ccall('SetPaddleMode', null, ['boolean'], [this.checked])" 
+               style="margin-right: 10px;">
               <span style="font-family: sans-serif; font-size: 14px;">Enable Paddle Mode (Mouse)</span>
           </label>
       </div>

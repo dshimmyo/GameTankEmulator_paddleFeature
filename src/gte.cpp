@@ -717,12 +717,15 @@ extern "C" {
 		EMSCRIPTEN_KEEPALIVE
 		void SetPaddleMode(bool enabled) {
 			paddle_emulation_enabled = enabled;
-			// if (enabled) {
-			// 	SDL_SetRelativeMouseMode(SDL_TRUE);
-			// } else {
-			// 	SDL_SetRelativeMouseMode(SDL_FALSE);
-			// }
 		}
+
+		void EMSCRIPTEN_KEEPALIVE SetPaddleValue(int val) {
+        // Map the 0-255 value directly to the joystick bits
+        // instead of relying on the mouse-coordinate math
+			if (joysticks != nullptr) {
+				joysticks->SetPaddleBitsDirect(val); 
+			}
+    	}
 	}
 	#endif
 }
@@ -1057,22 +1060,17 @@ EM_BOOL mainloop(double time, void* userdata) {
                 return true;
         }
         frame_time_accumulator -= target_frame_period_ms;
-#endif
+#else
 	if (paddle_emulation_enabled) {
         int mx, my, winW, winH;
         SDL_GetMouseState(&mx, &my);
         SDL_GetWindowSize(mainWindow, &winW, &winH);
         
-        // Handle cursor visibility/locking
-        // if (!showMenu) {
-        //     SDL_SetRelativeMouseMode(SDL_TRUE);
-        // } else {
-        //     SDL_SetRelativeMouseMode(SDL_FALSE);
-        // }
-        
-        // Call your modularized adapter function
         joysticks->UpdatePaddleFromMouse(0, mx, winW);
     }
+#endif
+
+
 #ifdef WRAPPER_MODE
 	if(!paused && !showMenu) {
 #else
