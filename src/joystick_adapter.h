@@ -61,10 +61,14 @@ class JoystickAdapter {
 private:
 	bool pad1State = false;
 	bool pad2State = false;
+	uint8_t dualAxis1FlipCounter = 0;
+	uint8_t dualAxis2FlipCounter = 0;
 	bool systemMenuPressed = false;
 	uint16_t pad1Mask = 0;
 	uint16_t pad2Mask = 0;
 	uint16_t held1Mask = 0;
+	uint16_t held1Mask_alt = 0; // New: Axis 2 (e.g., Mouse Y)
+	bool dualAxisEnabled;   // New: To insulate the read function
 	uint8_t button_press_counts[BUTTON_COUNT*2] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -82,5 +86,7 @@ public:
 	void Reset();
 	bool CheckSystemButtonPressed();
 	void UpdatePaddleFromMouse(int player, int mouseX, int windowWidth);
+	void UpdateDualAxisFromMouse(int player, int mouseX, int mouseY, int windowWidth);
+	void SetAxisBitsDirect(uint8_t axis, int val);
 	void SetPaddleBitsDirect(int val);
 };

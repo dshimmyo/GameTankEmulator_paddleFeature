@@ -89,6 +89,7 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
 bool paddle_emulation_enabled = false;
+bool dual_axis_emulation_enabled = false;
 
 void SaveNVRAM() {
 	fstream file;
@@ -933,6 +934,9 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
+				if (ImGui::Checkbox("Enable Dual-Axis Emulation", &dual_axis_emulation_enabled)) {
+					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				}
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1063,6 +1067,13 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else
+	if (dual_axis_emulation_enabled){
+		int mx, my, winW, winH;
+        SDL_GetMouseState(&mx, &my);
+        SDL_GetWindowSize(mainWindow, &winW, &winH);
+        
+        joysticks->UpdateDualAxisFromMouse(0, mx, my, winW);
+	}
 	if (paddle_emulation_enabled) {
         int mx, my, winW, winH;
         SDL_GetMouseState(&mx, &my);

@@ -37,26 +37,40 @@ JoystickAdapter::~JoystickAdapter() {
 uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 	uint8_t outbyte = 0xFF;
 	if(portNum % 2) {
-		
-		if(pad2State) {
-			outbyte = (uint8_t) (pad2Mask >> 8);
+		if (!dualAxisEnabled){
+			if(pad2State) {
+				outbyte = (uint8_t) (pad2Mask >> 8);
+			} else {
+				outbyte = (uint8_t) pad2Mask;
+			}
 		} else {
-			outbyte = (uint8_t) pad2Mask;
+			uint16_t currentMask = (dualAxisEnabled && (dualAxis2FlipCounter >> 1)) ? (held1Mask_alt | pad2Mask) : (held1Mask | pad2Mask);
+        	outbyte = (uint8_t)(pad2State ? (currentMask >> 8) : currentMask);
+			outbyte = (outbyte & ~GameTankButtons::C) | ( (dualAxis2FlipCounter>>1) ? GameTankButtons::C : 0);
 		}
 		if(stateful) {
 			pad1State = false;
 			pad2State = !pad2State;
+			dualAxis1FlipCounter=0;
+			dualAxis2FlipCounter = (dualAxis2FlipCounter + 1) % 4;
 		}
 	} else {
-		
-		if(pad1State) {
-			outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
+		if (!dualAxisEnabled){
+			if(pad1State) {
+				outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
+			} else {
+				outbyte = (uint8_t) (pad1Mask | held1Mask);
+			}
 		} else {
-			outbyte = (uint8_t) (pad1Mask | held1Mask);
+			uint16_t currentMask = (dualAxisEnabled && (dualAxis1FlipCounter >> 1)) ? (held1Mask_alt | pad1Mask) : (held1Mask | pad1Mask);
+        	outbyte = (uint8_t)(pad1State ? (currentMask >> 8) : currentMask);
+			outbyte = (outbyte & ~GameTankButtons::C) | ( (dualAxis1FlipCounter>>1) ? GameTankButtons::C : 0);
 		}
 		if(stateful) {
 			pad2State = false;
 			pad1State = !pad1State;
+			dualAxis1FlipCounter = (dualAxis1FlipCounter + 1) % 4;
+			dualAxis2FlipCounter=0;
 		}
 	}
 	return ~outbyte;
@@ -271,4 +285,41 @@ void JoystickAdapter::SetPaddleBitsDirect(int val) {
 void JoystickAdapter::UpdatePaddleFromMouse(int player, int mouseX, int windowWidth) {
     uint8_t p = ((uint8_t)((mouseX * 255) / windowWidth));
 	SetPaddleBitsDirect(p);
+}
+void JoystickAdapter::SetAxisBitsDirect(uint8_t axis, int val) {
+    uint8_t p = ~(uint8_t)val;//invert the bits for the ADC potentiometer
+    uint16_t paddle_state = 0;
+
+    if (p & 0x01) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_UP;
+    if (p & 0x02) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_DOWN;
+    if (p & 0x04) paddle_state |= GameTankButtons::GamepadButtonMask::LEFT;
+    if (p & 0x08) paddle_state |= GameTankButtons::GamepadButtonMask::RIGHT;
+    if (p & 0x10) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_X;
+    if (p & 0x20) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Y;
+    if (p & 0x40) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Z;
+    if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
+
+	//uint16_t current = held1Mask;
+	uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY your paddle bits
+	
+	if (axis == 0) {
+        held1Mask &= ~paddle_bits_mask;
+        held1Mask |= (paddle_state & paddle_bits_mask);
+    } else {
+        held1Mask_alt &= ~paddle_bits_mask;
+        held1Mask_alt |= (paddle_state & paddle_bits_mask);
+    }
+
+	// current &= ~paddle_bits_mask; 
+	// current |= (paddle_state & paddle_bits_mask);
+	// SetHeldButtons(current);
+}
+
+void JoystickAdapter::UpdateDualAxisFromMouse(int player, int mouseX, int mouseY, int windowWidth) {
+	uint8_t px = ((uint8_t)((mouseX * 255) / windowWidth));
+	uint8_t py = ((uint8_t)((mouseY * 255) / windowWidth));
+
+	SetAxisBitsDirect(0,px);
+	SetAxisBitsDirect(1,py);
+
 }
