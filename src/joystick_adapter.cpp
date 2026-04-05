@@ -48,11 +48,11 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 			outbyte = (uint8_t)(pad2State ? (currentMask >> 8) : currentMask);
 		}
 		if(stateful) { //portNum % 2 i.e. portnum 1 a.k.a. player 2
-			printf("[EMU READ] Port:%d | Counter:%d | State:%d | Val:0x%02X\n", 
-                portNum, 
-                (portNum % 2) ? dualAxis2FlipCounter : dualAxis1FlipCounter, 
-                (portNum % 2) ? pad2State : pad1State,
-                (uint8_t)~outbyte);
+			// printf("[EMU READ] Port:%d | Counter:%d | State:%d | Val:0x%02X\n", 
+            //     portNum, 
+            //     (portNum % 2) ? dualAxis2FlipCounter : dualAxis1FlipCounter, 
+            //     (portNum % 2) ? pad2State : pad1State,
+            //     (uint8_t)~outbyte);
 			pad1State = false; //reset player 1 port
 			pad2State = !pad2State; //toggle current pad state
 			dualAxis1FlipCounter=0;  //reset player 1 port
@@ -70,11 +70,11 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 			outbyte = (uint8_t)(pad1State ? (currentMask >> 8) : currentMask);
 		}
 		if(stateful) { //still player 1
-			printf("[EMU READ] Port:%d | Counter:%d | State:%d | Val:0x%02X\n", 
-                portNum, 
-                (portNum % 2) ? dualAxis2FlipCounter : dualAxis1FlipCounter, 
-                (portNum % 2) ? pad2State : pad1State,
-                (uint8_t)~outbyte);
+			// printf("[EMU READ] Port:%d | Counter:%d | State:%d | Val:0x%02X\n", 
+            //     portNum, 
+            //     (portNum % 2) ? dualAxis2FlipCounter : dualAxis1FlipCounter, 
+            //     (portNum % 2) ? pad2State : pad1State,
+            //     (uint8_t)~outbyte);
 			pad2State = false;  //reset player 2 port
 			pad1State = !pad1State; //toggle read state
 			dualAxis1FlipCounter = (dualAxis1FlipCounter + 1) % 4; //increment player 1 flipflop counter
