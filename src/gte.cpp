@@ -1067,6 +1067,7 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else
+	joysticks->dualAxisEnabled = dual_axis_emulation_enabled;
 	if (dual_axis_emulation_enabled){
 		int mx, my, winW, winH;
         SDL_GetMouseState(&mx, &my);

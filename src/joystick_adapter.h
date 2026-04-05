@@ -68,7 +68,6 @@ private:
 	uint16_t pad2Mask = 0;
 	uint16_t held1Mask = 0;
 	uint16_t held1Mask_alt = 0; // New: Axis 2 (e.g., Mouse Y)
-	bool dualAxisEnabled;   // New: To insulate the read function
 	uint8_t button_press_counts[BUTTON_COUNT*2] = {
 		0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -78,6 +77,7 @@ private:
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
+	bool dualAxisEnabled; //to toggle read function
 	uint8_t read(uint8_t portNum, bool stateful);
 	void update(SDL_Event *e, bool managementOnly);
 	void SetHeldButtons(uint16_t heldMask);
