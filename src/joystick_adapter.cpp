@@ -36,8 +36,8 @@ JoystickAdapter::~JoystickAdapter() {
 
 uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 	uint8_t outbyte = 0xFF;
-	if(portNum % 2) {
-		if (!dualAxisEnabled){
+	if(portNum % 2) { //player 2, this should always be false
+		if (!dualAxisEnabled){ //default behavior
 			if(pad2State) {
 				outbyte = (uint8_t) (pad2Mask >> 8);
 			} else {
@@ -45,17 +45,16 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 			}
 		} else {
 			uint16_t currentMask = (dualAxisEnabled && (dualAxis2FlipCounter >> 1)) ? (held1Mask_alt | pad2Mask) : (held1Mask | pad2Mask);
-        	outbyte = (uint8_t)(pad2State ? (currentMask >> 8) : currentMask);
-			outbyte = (outbyte & ~GameTankButtons::C) | ( (dualAxis2FlipCounter>>1) ? GameTankButtons::C : 0);
+			outbyte = (uint8_t)(pad2State ? (currentMask >> 8) : currentMask);
 		}
-		if(stateful) {
-			pad1State = false;
-			pad2State = !pad2State;
-			dualAxis1FlipCounter=0;
-			dualAxis2FlipCounter = (dualAxis2FlipCounter + 1) % 4;
+		if(stateful) { //portNum % 2 i.e. portnum 1 a.k.a. player 2
+			pad1State = false; //reset player 1 port
+			pad2State = !pad2State; //toggle current pad state
+			dualAxis1FlipCounter=0;  //reset player 1 port
+			dualAxis2FlipCounter = (dualAxis2FlipCounter + 1) % 4; //increment flipflop counter
 		}
-	} else {
-		if (!dualAxisEnabled){
+	} else { //player 1
+		if (!dualAxisEnabled){ //default behavior
 			if(pad1State) {
 				outbyte = (uint8_t) ((pad1Mask | held1Mask) >> 8);
 			} else {
@@ -63,14 +62,13 @@ uint8_t JoystickAdapter::read(uint8_t portNum, bool stateful) {
 			}
 		} else {
 			uint16_t currentMask = (dualAxisEnabled && (dualAxis1FlipCounter >> 1)) ? (held1Mask_alt | pad1Mask) : (held1Mask | pad1Mask);
-        	outbyte = (uint8_t)(pad1State ? (currentMask >> 8) : currentMask);
-			outbyte = (outbyte & ~GameTankButtons::C) | ( (dualAxis1FlipCounter>>1) ? GameTankButtons::C : 0);
+			outbyte = (uint8_t)(pad1State ? (currentMask >> 8) : currentMask);
 		}
-		if(stateful) {
-			pad2State = false;
-			pad1State = !pad1State;
-			dualAxis1FlipCounter = (dualAxis1FlipCounter + 1) % 4;
-			dualAxis2FlipCounter=0;
+		if(stateful) { //still player 1
+			pad2State = false;  //reset player 2 port
+			pad1State = !pad1State; //toggle read state
+			dualAxis1FlipCounter = (dualAxis1FlipCounter + 1) % 4; //increment player 1 flipflop counter
+			dualAxis2FlipCounter=0; //reset player 2 flipflop counter
 		}
 	}
 	return ~outbyte;
@@ -299,15 +297,23 @@ void JoystickAdapter::SetAxisBitsDirect(uint8_t axis, int val) {
     if (p & 0x40) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_Z;
     if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
 
-	//uint16_t current = held1Mask;
-	uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY your paddle bits
-	
-	if (axis == 0) {
-        held1Mask &= ~paddle_bits_mask;
-        held1Mask |= (paddle_state & paddle_bits_mask);
+	uint16_t current;
+	uint16_t paddle_bits_mask = (
+        GameTankButtons::PADDLE_UP | GameTankButtons::PADDLE_DOWN |
+        GameTankButtons::LEFT      | GameTankButtons::RIGHT      |
+        GameTankButtons::PADDLE_X  | GameTankButtons::PADDLE_Y      |
+        GameTankButtons::PADDLE_Z  | GameTankButtons::PADDLE_MODE
+    );	
+
+if (axis == 0) {
+        // AXIS X: Update paddle bits, ensure C is LOW
+        held1Mask = (held1Mask & ~paddle_bits_mask) | paddle_state;
+        held1Mask &= ~GameTankButtons::C; 
     } else {
-        held1Mask_alt &= ~paddle_bits_mask;
-        held1Mask_alt |= (paddle_state & paddle_bits_mask);
+        // AXIS Y: Update paddle bits, ensure C is HIGH
+        // We use held1Mask as the base to keep A, B, and Start button states
+        held1Mask_alt = (held1Mask & ~paddle_bits_mask) | paddle_state;
+        held1Mask_alt |= GameTankButtons::C; //sets C bit to high
     }
 
 	// current &= ~paddle_bits_mask; 
@@ -315,9 +321,9 @@ void JoystickAdapter::SetAxisBitsDirect(uint8_t axis, int val) {
 	// SetHeldButtons(current);
 }
 
-void JoystickAdapter::UpdateDualAxisFromMouse(int player, int mouseX, int mouseY, int windowWidth) {
+void JoystickAdapter::UpdateDualAxisFromMouse(int player, int mouseX, int mouseY, int windowWidth, int windowHeight) {
 	uint8_t px = ((uint8_t)((mouseX * 255) / windowWidth));
-	uint8_t py = ((uint8_t)((mouseY * 255) / windowWidth));
+	uint8_t py = ((uint8_t)((mouseY * 255) / windowHeight));
 
 	SetAxisBitsDirect(0,px);
 	SetAxisBitsDirect(1,py);

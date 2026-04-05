@@ -86,7 +86,7 @@ public:
 	void Reset();
 	bool CheckSystemButtonPressed();
 	void UpdatePaddleFromMouse(int player, int mouseX, int windowWidth);
-	void UpdateDualAxisFromMouse(int player, int mouseX, int mouseY, int windowWidth);
+	void UpdateDualAxisFromMouse(int player, int mouseX, int mouseY, int windowWidth, int windowHeight);
 	void SetAxisBitsDirect(uint8_t axis, int val);
 	void SetPaddleBitsDirect(int val);
 };

@@ -1072,9 +1072,8 @@ EM_BOOL mainloop(double time, void* userdata) {
         SDL_GetMouseState(&mx, &my);
         SDL_GetWindowSize(mainWindow, &winW, &winH);
         
-        joysticks->UpdateDualAxisFromMouse(0, mx, my, winW);
-	}
-	if (paddle_emulation_enabled) {
+        joysticks->UpdateDualAxisFromMouse(0, mx, my, winW, winH);
+	} else if (paddle_emulation_enabled) {
         int mx, my, winW, winH;
         SDL_GetMouseState(&mx, &my);
         SDL_GetWindowSize(mainWindow, &winW, &winH);
