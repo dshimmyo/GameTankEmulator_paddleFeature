@@ -484,6 +484,8 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			system_state.VIA_regs[address & 0xF] = value;
 		} else {
 			if((address & 0x000F) == 0x0007) {
+				blitter->CatchUp();
+
 				fourthwall.upper_byte = value;//start fourthwall add
 				fourthwall.is_upper_set = true;
 
@@ -497,13 +499,6 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 					fourthwall.is_upper_set = false;
 					fourthwall.is_lower_set = false;
 				}
-			}
-			else if((address & 0x000F) == 0x0008) {
-				fourthwall.lower_byte = value;
-				fourthwall.is_lower_set = true;
-			}
-			else if((address & 0x000F) == 0x0007) {//end fourthwall add
-				blitter->CatchUp();
 				if((value & DMA_VID_OUT_PAGE_BIT) != (system_state.dma_control & DMA_VID_OUT_PAGE_BIT)) {
 					profiler.bufferFlipCount++;
 					if(profiler.measure_by_frameflip) {
@@ -519,6 +514,9 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 				} else {
 					SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 				}
+			} else if((address & 0x000F) == 0x0008) {
+                fourthwall.lower_byte = value;
+                fourthwall.is_lower_set = true;
 			} else if((address & 0x000F) == 0x0005) {
 				blitter->CatchUp();
 				system_state.banking = value;
