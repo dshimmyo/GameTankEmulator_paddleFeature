@@ -50,6 +50,7 @@
 #include "imgui/backends/imgui_impl_sdlrenderer2.h"
 #include "whereami/whereami.h"
 #endif
+#include "fourthwall.h"
 
 #ifndef WINDOW_TITLE
 #define WINDOW_TITLE "GameTank Emulator"
@@ -89,6 +90,7 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
 bool paddle_emulation_enabled = false;
+FourthWall fourthwall;
 
 void SaveNVRAM() {
 	fstream file;
@@ -482,6 +484,25 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			system_state.VIA_regs[address & 0xF] = value;
 		} else {
 			if((address & 0x000F) == 0x0007) {
+				fourthwall.upper_byte = value;//start fourthwall add
+				fourthwall.is_upper_set = true;
+
+				if (fourthwall.is_upper_set && fourthwall.is_lower_set) {
+					uint16_t full_address = (static_cast<uint16_t>(fourthwall.upper_byte) << 8) | fourthwall.lower_byte;
+				
+					fourthwall.game_ram_pointer = &system_state.ram[FULL_RAM_ADDRESS(full_address & 0x1FFF)];
+					*fourthwall.game_ram_pointer = 1;
+					fourthwall.is_broken = true;
+				
+					fourthwall.is_upper_set = false;
+					fourthwall.is_lower_set = false;
+				}
+			}
+			else if((address & 0x000F) == 0x0008) {
+				fourthwall.lower_byte = value;
+				fourthwall.is_lower_set = true;
+			}
+			else if((address & 0x000F) == 0x0007) {//end fourthwall add
 				blitter->CatchUp();
 				if((value & DMA_VID_OUT_PAGE_BIT) != (system_state.dma_control & DMA_VID_OUT_PAGE_BIT)) {
 					profiler.bufferFlipCount++;
@@ -885,6 +906,9 @@ void refreshScreen() {
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
+	if (fourthwall.is_broken && *fourthwall.game_ram_pointer == 3) {
+		fourthwall.show_overlay(system_state, vRAM_Surface);
+	}
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
 	SDL_RenderClear(mainRenderer);
