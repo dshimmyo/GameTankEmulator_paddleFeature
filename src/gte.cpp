@@ -54,6 +54,7 @@
 #ifndef WINDOW_TITLE
 #define WINDOW_TITLE "GameTank Emulator"
 #endif
+#include <SDL2/SDL.h>
 
 using namespace std;
 
@@ -323,7 +324,8 @@ uint8_t* GetRAM(const uint16_t address) {
 uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2007) { //unused/write-only address
         return 0x55;         // magic emulator ID
-    } else if(address & 0x8000) {
+    }
+	if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
 			return cartridge_state.rom[address & 0x1FFF];
@@ -379,7 +381,36 @@ uint8_t MemorySync(uint16_t address) {
 	return MemoryRead(address);
 }
 
+void MagicRumble(uint8_t strength) {
+    // Open the first controller found
+    SDL_GameController* controller = SDL_GameControllerOpen(0);
+    
+    if (controller) {
+        // SDL_GameControllerRumble takes values from 0 to 0xFFFF (65535)
+        // We shift your 0-255 value left by 8 to fill that range
+        //uint16_t intensity = (uint16_t)strength << 8;
+		// Try putting more juice into the high-frequency (right) motor
+		// and less into the heavy (left) motor for a "snappier" feel.
+		uint16_t low_freq = (uint16_t)(strength << 8) * 0.5f; // 50% power to the 'thump'
+		uint16_t high_freq = (uint16_t)(strength << 8);        // 100% power to the 'sting'
+
+		//SDL_GameControllerRumble(controller, low_freq, high_freq, 100);
+        // Play rumble on both low and high frequency motors for 100ms
+        if (SDL_GameControllerRumble(controller, low_freq, high_freq, 100) != 0) {
+            // If it fails, let's see why in the console
+            printf("Rumble failed: %s\n", SDL_GetError());
+        }
+    } else {
+    	printf("No controller found at index 0\n");
+    }
+}
+
 void MemoryWrite(uint16_t address, uint8_t value) {
+
+	if (address == 0x2008) { //unused/write-only address
+		MagicRumble(value);
+    } 
+	else 
 	if(address & 0x8000) {
 		if(loadedRomType == RomType::FLASH2M_RAM32K) {
 			if(!(address & 0x4000)) {
