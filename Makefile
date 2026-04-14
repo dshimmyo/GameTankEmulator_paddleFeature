@@ -86,6 +86,8 @@ ifeq ($(OS), Windows_NT)
 else ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
+	OUT_DIR = wasmbuild
+
 
 	#Only run this if $PRELOAD_ROM is set
 	#This should only be required when building for Nix for now
@@ -181,6 +183,9 @@ debug: all
 
 clean:
 	rm -rf $(OUT_DIR)
+
+clean-wasm:
+	rm -rf wasmbuild
 
 clean-all: clean
 	rm -rf $(INSTALL_DIR)
