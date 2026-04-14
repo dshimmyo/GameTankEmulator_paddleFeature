@@ -3,6 +3,8 @@
 bin/*
 build
 build/*
+wasmbuild
+wasmbuild/*
 *.dll
 .vscode
 roms/*.sav
