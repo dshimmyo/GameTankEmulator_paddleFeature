@@ -89,6 +89,7 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
 bool paddle_emulation_enabled = false;
+bool paddle_delta_emulation_enabled = false;
 
 void SaveNVRAM() {
 	fstream file;
@@ -933,6 +934,9 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
+				if (ImGui::Checkbox("Enable Paddle Mouse Emulation", &paddle_delta_emulation_enabled)) {
+					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				}
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1021,6 +1025,9 @@ void refreshScreen() {
 			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
+			if (ImGui::Checkbox("Enable Paddle Mouse Emulation", &paddle_delta_emulation_enabled)) {
+				joysticks->SetHeldButtons(0);//clear bits on change just in case
+			}
 			ImGui::EndMenu();
 		}
 
@@ -1063,13 +1070,28 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else
-	if (paddle_emulation_enabled) {
-        int mx, my, winW, winH;
-        SDL_GetMouseState(&mx, &my);
-        SDL_GetWindowSize(mainWindow, &winW, &winH);
+if (paddle_emulation_enabled) {
+    int mx, my, winW, winH;
+    SDL_GetMouseState(&mx, &my);
+    SDL_GetWindowSize(mainWindow, &winW, &winH);
+    joysticks->UpdatePaddleFromCursorPos(0, mx, winW);
+}
+else if (paddle_delta_emulation_enabled) {
+if (showMenu) {
+    if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+    } else {
+        // Not in menu? Ensure the mouse is captured
+        if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
         
-        joysticks->UpdatePaddleFromMouse(0, mx, winW);
+        int dx, dy;
+        SDL_GetRelativeMouseState(&dx, &dy);
+        joysticks->UpdatePaddleFromMouse(0, dx);
     }
+}
+else {
+    if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+}
+	
 #endif
 
 
@@ -1233,6 +1255,15 @@ EM_BOOL mainloop(double time, void* userdata) {
 						running = false;
 					}
 				}
+				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+				} 
+				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+					if (paddle_delta_emulation_enabled) {
+						SDL_SetRelativeMouseMode(SDL_TRUE);
+					}
+				}
+
 			} else if((e.type == SDL_KEYDOWN) || (e.type == SDL_KEYUP)) {
 				if(e.key.repeat == 0) {
 					if((e.type == SDL_KEYUP) || !checkHotkey(e.key.keysym.sym)) {

@@ -71,6 +71,7 @@ private:
 	};
 	SDL_GameController* gGameController = NULL;
 	SDL_JoystickID gGameControllerId = 0;
+	uint8_t currentPaddleValue[4] = {128, 128, 128, 128};
 public:
 	JoystickAdapter();
 	~JoystickAdapter();
@@ -81,6 +82,7 @@ public:
 	void SaveBindings();
 	void Reset();
 	bool CheckSystemButtonPressed();
-	void UpdatePaddleFromMouse(int player, int mouseX, int windowWidth);
+	void UpdatePaddleFromCursorPos(int player, int mouseX, int windowWidth);
+	void UpdatePaddleFromMouse(int index, int dx);
 	void SetPaddleBitsDirect(int val);
 };
