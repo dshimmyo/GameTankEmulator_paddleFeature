@@ -268,7 +268,21 @@ void JoystickAdapter::SetPaddleBitsDirect(int val) {
 	SetHeldButtons(current);
 }
 
-void JoystickAdapter::UpdatePaddleFromMouse(int player, int mouseX, int windowWidth) {
+void JoystickAdapter::UpdatePaddleFromCursorPos(int player, int mouseX, int windowWidth) {
     uint8_t p = ((uint8_t)((mouseX * 255) / windowWidth));
 	SetPaddleBitsDirect(p);
+}
+
+void JoystickAdapter::UpdatePaddleFromMouse(int index, int dx) {
+    // Take the current paddle value and add the delta
+    // You might want a sensitivity multiplier here (e.g., dx * 2)
+    int newValue = currentPaddleValue[index] + dx;
+
+    // Clamp between 0 and 255 for the GameTank
+    if (newValue > 255) newValue = 255;
+    if (newValue < 0) newValue = 0;
+
+    currentPaddleValue[index] = (uint8_t)newValue;
+	SetPaddleBitsDirect(newValue);
+
 }
