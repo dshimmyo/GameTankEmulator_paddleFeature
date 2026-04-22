@@ -90,7 +90,25 @@ int resetQueued = 0;
 int muteMask = 0;
 bool paddle_emulation_enabled = false;
 bool paddle_delta_emulation_enabled = false;
+bool dksPaddle_detected = false;
+int32_t currentPaddleRawValue = 0;
 
+void PaddleInit() {
+	int num_joysticks = SDL_NumJoysticks();
+	for (int i = 0; i < num_joysticks; i++) {
+		SDL_JoystickGUID guid = SDL_JoystickGetDeviceGUID(i);
+		char guid_str[33];
+		SDL_JoystickGetGUIDString(guid, guid_str, sizeof(guid_str));
+
+		// Check if the GUID matches your hardware
+		if (strcmp(guid_str, "030052989a2300000881000000010000") == 0) {
+			dksPaddle_detected = true;
+			SDL_JoystickOpen(i); // Open it so we get events
+			printf("DKS Paddle Hardware Verified and Connected.\n");
+			break;
+		}
+	}
+}
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -1070,7 +1088,18 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else
-if (paddle_emulation_enabled) {
+if (dksPaddle_detected) {
+    // We treat the full joystick range as our "Window Width"
+    // Logical range of SDL Axis is 65535 units wide
+    const int virtualWidth = 65535;
+    
+    // Offset the raw value (-32768 to 32767) to be 0 to 65535
+    int normalizedX = currentPaddleRawValue + 32768;
+
+    joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
+} 
+else if (paddle_emulation_enabled) {
+    // Fallback to mouse if hardware isn't plugged in
     int mx, my, winW, winH;
     SDL_GetMouseState(&mx, &my);
     SDL_GetWindowSize(mainWindow, &winW, &winH);
@@ -1320,6 +1349,17 @@ else {
 						}
 					}
 				}
+            } else if (e.type == SDL_JOYAXISMOTION) {
+                if (dksPaddle_detected && e.jaxis.axis == 0) {
+                    currentPaddleRawValue = e.jaxis.value; 
+                }
+            } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
+                if (dksPaddle_detected && e.jbutton.button == 4) {
+
+					bool isDown = (e.type == SDL_JOYBUTTONDOWN);
+					
+					joysticks->SetPaddleAButtonDirect(isDown);
+                }
             } else {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
@@ -1498,6 +1538,7 @@ int main(int argC, char* argV[]) {
 
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
+	PaddleInit();
 	SDL_RaiseWindow(mainWindow);
 	while(running) {
 		mainloop(0, NULL);
