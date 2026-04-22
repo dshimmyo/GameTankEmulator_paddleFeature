@@ -267,6 +267,19 @@ void JoystickAdapter::SetPaddleBitsDirect(int val) {
 	current |= (paddle_state & paddle_bits_mask);
 	SetHeldButtons(current);
 }
+void JoystickAdapter::SetPaddleAButtonDirect(bool pressedState) {
+    uint16_t current = held1Mask;
+    
+    if (pressedState) {
+        // Set the A bit to 1
+        current |= GameTankButtons::A;
+    } else {
+        // Set the A bit to 0 using a bitwise AND with the inverse mask
+        current &= ~GameTankButtons::A;
+    }
+    
+    SetHeldButtons(current);
+}
 
 void JoystickAdapter::UpdatePaddleFromCursorPos(int player, int mouseX, int windowWidth) {
     uint8_t p = ((uint8_t)((mouseX * 255) / windowWidth));
