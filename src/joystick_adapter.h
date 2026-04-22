@@ -85,4 +85,6 @@ public:
 	void UpdatePaddleFromCursorPos(int player, int mouseX, int windowWidth);
 	void UpdatePaddleFromMouse(int index, int dx);
 	void SetPaddleBitsDirect(int val);
+	void SetPaddleAButtonDirect(bool pressedState);
+
 };
