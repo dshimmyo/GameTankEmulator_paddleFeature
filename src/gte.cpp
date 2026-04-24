@@ -739,8 +739,27 @@ extern "C" {
 		EMSCRIPTEN_KEEPALIVE
 		void SetPaddleMode(bool enabled) {
 			paddle_emulation_enabled = enabled;
+			if (paddle_emulation_enabled){
+				if (paddle_touch_mode) {
+					SDL_SetRelativeMouseMode(SDL_FALSE);
+				}
+				else
+				{
+					SDL_SetRelativeMouseMode(SDL_TRUE);
+				}
+			}
 		}
-
+		void SetPaddleTouchMode(bool enabled) {
+			paddle_touch_mode = enabled;
+			// If we switch to touch, we must ensure relative mode is off
+			if (paddle_touch_mode) {
+				SDL_SetRelativeMouseMode(SDL_FALSE);
+			}
+			else
+			{
+				SDL_SetRelativeMouseMode(SDL_TRUE);
+			}
+		}
 		void EMSCRIPTEN_KEEPALIVE SetPaddleValue(int val) {
         // Map the 0-255 value directly to the joystick bits
         // instead of relying on the mouse-coordinate math
@@ -748,6 +767,12 @@ extern "C" {
 				joysticks->SetPaddleBitsDirect(val); 
 			}
     	}
+
+		void EMSCRIPTEN_KEEPALIVE UpdatePaddleFromMouseJS(int index, int dx) {
+			// Calls your existing logic that adds dx to the current paddle position
+			joysticks->UpdatePaddleFromMouse(0, dx);
+		}
+
 	}
 	#endif
 }
@@ -953,9 +978,6 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
-				// if (ImGui::Checkbox("Enable Paddle Mouse Emulation", &paddle_delta_emulation_enabled)) {
-				// 	joysticks->SetHeldButtons(0);//clear bits on change just in case
-				// }
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1044,9 +1066,6 @@ void refreshScreen() {
 			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
-			// if (ImGui::Checkbox("Enable Paddle Mouse Emulation", &paddle_delta_emulation_enabled)) {
-			// 	joysticks->SetHeldButtons(0);//clear bits on change just in case
-			// }
 			ImGui::EndMenu();
 		}
 
