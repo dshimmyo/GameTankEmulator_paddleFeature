@@ -274,7 +274,8 @@
                 if (window.isTouchMode) {
                     // --- ABSOLUTE MODE (Existing logic) ---
                     const rect = canvas.getBoundingClientRect();
-                    let x = (e.clientX - rect.left) / rect.width;
+                    const margin = rect.width / 6;
+                    let x = (e.clientX - (rect.left + margin)) / (rect.width - margin*2);
                     let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
                     Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
                 } else {
@@ -303,10 +304,10 @@
               touch.clientY >= rect.top &&
               touch.clientY <= rect.bottom
             );
-
+            const margin = rect.width / 6;
             if (isInsideCanvas) {
                 e.preventDefault();
-                let x = (touch.clientX - rect.left) / rect.width;
+                let x = (touch.clientX - (rect.left + margin)) / (rect.width - margin*2);
                 let paddleVal = Math.max(0, Math.min(1, x)) * 255;
                 Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
             }
