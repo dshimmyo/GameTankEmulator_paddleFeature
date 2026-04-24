@@ -235,8 +235,6 @@
           if (typeof Module.ccall !== 'undefined') {
               Module.ccall('SetButtons', null, ["int"], [touchedMask]);
               
-              // 2. THE FIX: Force focus back to the game canvas
-              // This ensures the 6502 engine sees the '16' in its next poll
               const canvas = document.getElementById('canvas') || document.querySelector('canvas');
               if (canvas) canvas.focus();
           }
@@ -270,13 +268,25 @@
             }
         }
 
-        // GLOBAL MOUSE TRACKING FOR PADDLE
         canvas.addEventListener('mousemove', function(e) {
             if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
-                const rect = canvas.getBoundingClientRect();
-                let x = (e.clientX - rect.left) / rect.width;
-                let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
-                Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+                
+                if (window.isTouchMode) {
+                    // --- ABSOLUTE MODE (Existing logic) ---
+                    const rect = canvas.getBoundingClientRect();
+                    let x = (e.clientX - rect.left) / rect.width;
+                    let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
+                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+                } else {
+                    // --- DELTA MODE (New logic) ---
+                    // movementX is the raw change provided by the browser
+                    const dx = e.movementX || e.mozMovementX || 0;
+                    
+                    if (dx !== 0) {
+                        // We call your Delta function in C++ instead of setting the absolute value
+                        Module.ccall('UpdatePaddleFromMouseJS', null, ['number', 'number'], [0, dx]);
+                    }
+                }
             }
         });
 
@@ -302,6 +312,24 @@
             }
         }, { passive: false });
 
+        canvas.addEventListener('mousedown', function(e) {
+            if (window.paddleModeEnabled && !window.isTouchMode) {
+                canvas.requestPointerLock();
+                // Force SDL to update its internal state
+                if (Module._SDL_SetRelativeMouseMode) {
+                    Module._SDL_SetRelativeMouseMode(1); // 1 is TRUE
+                }
+            }
+        });
+
+        // Listen for the lock being dropped (like when hitting ESC)
+        document.addEventListener('pointerlockchange', function() {
+            if (document.pointerLockElement !== canvas) {
+                console.log("Pointer Lock Lost");
+                // You could call a C++ function here to let the emulator know
+                // e.g., Module._HandlePointerLockLost();
+            }
+        }, false);
       
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
@@ -545,7 +573,9 @@
 
         inputScreen.ontouchstart = (e) => handleGamepadInput(e, true);
         inputScreen.ontouchend = (e) => handleGamepadInput(e, false);
-        
+      // In your JS initialization
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      Module._SetPaddleTouchMode(isTouch);
       }
 
       if(typeof GAMEINFO != "undefined") {
