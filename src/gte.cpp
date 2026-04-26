@@ -96,6 +96,9 @@ int32_t currentPaddleRawValue = 0;
 
 void PaddleInit() {
 	int num_joysticks = SDL_NumJoysticks();
+
+	dksPaddle_detected = false; //assume false
+
 	for (int i = 0; i < num_joysticks; i++) {
 		SDL_JoystickGUID guid = SDL_JoystickGetDeviceGUID(i);
 		char guid_str[33];
@@ -110,6 +113,22 @@ void PaddleInit() {
 		}
 	}
 }
+
+// Static or global variables to track the timer
+static uint32_t lastPaddleCheck = 0;
+const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
+
+void UpdatePaddleStatus() {
+    // Only run the scan if we don't have a paddle yet
+    if (!dksPaddle_detected) {
+        uint32_t currentTime = SDL_GetTicks();
+        if (currentTime - lastPaddleCheck > PADDLE_CHECK_INTERVAL) {
+            PaddleInit();
+            lastPaddleCheck = currentTime;
+        }
+    }
+}
+
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -1113,6 +1132,7 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else
+UpdatePaddleStatus();//lazy dev checker
 if (dksPaddle_detected) {
     // We treat the full joystick range as our "Window Width"
     // Logical range of SDL Axis is 65535 units wide
@@ -1386,6 +1406,9 @@ else {
 					
 					joysticks->SetPaddleAButtonDirect(isDown);
                 }
+			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
+    			dksPaddle_detected = false;
+    			printf("DKS Paddle Lost. Reverting to Mouse.\n");
             } else {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
