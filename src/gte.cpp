@@ -342,8 +342,13 @@ uint8_t* GetRAM(const uint16_t address) {
 
 uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2007) { //unused/write-only address
-        return 0x55;         // magic emulator ID
-    } else if(address & 0x8000) {
+		uint8_t status = 0x55; // Base "Emulator" ID
+        if (dksPaddle_detected) {
+            // Tell the game: "This is a real physical dial, please clamp rotation"
+            status |= 0x02; 
+        } 
+        return status;
+	} else if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
 			return cartridge_state.rom[address & 0x1FFF];
