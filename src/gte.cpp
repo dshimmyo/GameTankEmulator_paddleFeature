@@ -92,6 +92,7 @@ bool paddle_emulation_enabled = false;
 bool paddle_touch_mode = false;
 //bool paddle_delta_emulation_enabled = false;
 bool dksPaddle_detected = false;
+SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
 
 void PaddleInit() {
@@ -106,11 +107,14 @@ void PaddleInit() {
 
 		// Check if the GUID matches your hardware
 		if (strcmp(guid_str, "030052989a2300000881000000010000") == 0) {
-			dksPaddle_detected = true;
-			SDL_JoystickOpen(i); // Open it so we get events
-			printf("DKS Paddle Hardware Verified and Connected.\n");
-			break;
-		}
+            SDL_Joystick* j = SDL_JoystickOpen(i); // Open it once
+            if (j) {
+                dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+                dksPaddle_detected = true;
+                printf("DKS Paddle Hardware Verified and Connected. (Instance ID: %d)\n", dksPaddle_instanceID);
+            }
+            break; 
+        }
 	}
 }
 
@@ -1405,10 +1409,15 @@ else {
 					bool isDown = (e.type == SDL_JOYBUTTONDOWN);
 					
 					joysticks->SetPaddleAButtonDirect(isDown);
+					printf("Button Press: %d\n", e.jbutton.button);
+
                 }
 			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
-    			dksPaddle_detected = false;
-    			printf("DKS Paddle Lost. Reverting to Mouse.\n");
+				if (dksPaddle_detected && e.jdevice.which == dksPaddle_instanceID) {
+					dksPaddle_detected = false;
+					dksPaddle_instanceID = -1; // Reset it
+					printf("DKS Paddle Lost. Reverting to Mouse.\n");
+				}
             } else {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
