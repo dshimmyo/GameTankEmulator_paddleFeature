@@ -96,26 +96,29 @@ SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
 
 void PaddleInit() {
-	int num_joysticks = SDL_NumJoysticks();
+    int num_joysticks = SDL_NumJoysticks();
+    dksPaddle_detected = false; 
 
-	dksPaddle_detected = false; //assume false
-
-	for (int i = 0; i < num_joysticks; i++) {
-		SDL_JoystickGUID guid = SDL_JoystickGetDeviceGUID(i);
-		char guid_str[33];
-		SDL_JoystickGetGUIDString(guid, guid_str, sizeof(guid_str));
-
-		// Check if the GUID matches your hardware
-		if (strcmp(guid_str, "030052989a2300000881000000010000") == 0) {
-            SDL_Joystick* j = SDL_JoystickOpen(i); // Open it once
+    for (int i = 0; i < num_joysticks; i++) {
+        const char* name = SDL_JoystickNameForIndex(i);
+        
+        // Check if the device name contains your new Product Descriptor
+        if (name != NULL && strstr(name, "HAQ-Pad") != NULL) {
+            SDL_Joystick* j = SDL_JoystickOpen(i); 
             if (j) {
                 dksPaddle_instanceID = SDL_JoystickInstanceID(j);
                 dksPaddle_detected = true;
-                printf("DKS Paddle Hardware Verified and Connected. (Instance ID: %d)\n", dksPaddle_instanceID);
+                
+                // Optional: Print the full device name to verify OSHP prefix
+                printf("Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
             }
             break; 
         }
-	}
+    }
+
+    if (!dksPaddle_detected) {
+        printf("HAQ-Pad not found. Check USB connection.\n");
+    }
 }
 
 // Static or global variables to track the timer
@@ -1409,7 +1412,7 @@ else {
 					bool isDown = (e.type == SDL_JOYBUTTONDOWN);
 					
 					joysticks->SetPaddleAButtonDirect(isDown);
-					printf("Button Press: %d\n", e.jbutton.button);
+					//printf("Button Press: %d\n", e.jbutton.button);
 
                 }
 			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
