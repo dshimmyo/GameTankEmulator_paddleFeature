@@ -116,9 +116,9 @@ void PaddleInit() {
         }
     }
 
-    if (!dksPaddle_detected) {
-        printf("HAQ-Pad not found. Check USB connection.\n");
-    }
+    //if (!dksPaddle_detected) {
+        //printf("HAQ-Pad not found. Check USB connection.\n");
+    //}
 }
 
 // Static or global variables to track the timer
@@ -1407,12 +1407,13 @@ else {
                     currentPaddleRawValue = e.jaxis.value; 
                 }
             } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
-                if (dksPaddle_detected && e.jbutton.button == 4) {
+				//printf("Button Press: %d\n", e.jbutton.button);
+
+                if (dksPaddle_detected && e.jbutton.button == 0) {
 
 					bool isDown = (e.type == SDL_JOYBUTTONDOWN);
 					
 					joysticks->SetPaddleAButtonDirect(isDown);
-					//printf("Button Press: %d\n", e.jbutton.button);
 
                 }
 			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
