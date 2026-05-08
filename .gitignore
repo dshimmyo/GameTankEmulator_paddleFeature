@@ -9,3 +9,4 @@ wasmbuild/*
 .vscode
 roms/*.sav
 dist
+*.code-workspace
