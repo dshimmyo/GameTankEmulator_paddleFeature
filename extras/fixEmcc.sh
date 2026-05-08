@@ -3,3 +3,4 @@ unset LIBRARY_PATH
 unset CPATH 
 make clean-wasm
 make OS=wasm ROMFILE=roms/paddleTest.gtr
+cp roms/paddleTest.gtr wasmbuild/brickgame.gtr
