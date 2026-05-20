@@ -103,8 +103,8 @@ void PaddleInit() {
         const char* name = SDL_JoystickNameForIndex(i);
         
         // Check if the device name contains your new Product Descriptor
-        if (name != NULL && strstr(name, "HAQ-Pad") != NULL) {
-            SDL_Joystick* j = SDL_JoystickOpen(i); 
+		if (name != NULL && strstr(name, "Paddle Controller") != NULL) {
+	            SDL_Joystick* j = SDL_JoystickOpen(i); 
             if (j) {
                 dksPaddle_instanceID = SDL_JoystickInstanceID(j);
                 dksPaddle_detected = true;
@@ -1130,7 +1130,13 @@ double frame_time_accumulator = 0;
 #endif
 
 EM_BOOL mainloop(double time, void* userdata) {
+UpdatePaddleStatus();//lazy dev checker
+
 #ifdef WASM_BUILD
+	// 1. Process the paddle data first
+        const int virtualWidth = 65535;
+        int normalizedX = currentPaddleRawValue + 32768;
+        joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
         double delta_time = time - last_raf_time;
         frame_time_accumulator += delta_time;
         last_raf_time = time;
@@ -1139,7 +1145,6 @@ EM_BOOL mainloop(double time, void* userdata) {
         }
         frame_time_accumulator -= target_frame_period_ms;
 #else
-UpdatePaddleStatus();//lazy dev checker
 if (dksPaddle_detected) {
     // We treat the full joystick range as our "Window Width"
     // Logical range of SDL Axis is 65535 units wide
@@ -1403,9 +1408,15 @@ else {
 					}
 				}
             } else if (e.type == SDL_JOYAXISMOTION) {
-                if (dksPaddle_detected && e.jaxis.axis == 0) {
-                    currentPaddleRawValue = e.jaxis.value; 
-                }
+				#ifdef WASM_BUILD
+				if (e.jaxis.axis == 0) {
+					currentPaddleRawValue = e.jaxis.value; 
+				}
+				#else
+				if (dksPaddle_detected && e.jaxis.axis == 0) {
+					currentPaddleRawValue = e.jaxis.value; 
+				}
+				#endif
             } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
 				//printf("Button Press: %d\n", e.jbutton.button);
 
@@ -1593,12 +1604,12 @@ int main(int argC, char* argV[]) {
 #endif
 		
 	}
+	PaddleInit();
 
 #ifdef WASM_BUILD
 
 	emscripten_request_animation_frame_loop(mainloop, 0);
 #else
-	PaddleInit();
 	SDL_RaiseWindow(mainWindow);
 	while(running) {
 		mainloop(0, NULL);
