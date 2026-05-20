@@ -1515,6 +1515,12 @@ int main(int argC, char* argV[]) {
 			rom_file_name = argV[argIdx];
 		}
 	}
+
+	// Brick Game FALLBACK: If no ROM was specified via command line, use the default local path
+    if (rom_file_name == NULL) {
+        rom_file_name = (char*)"roms/brickgame.gtr";
+    }
+
 #endif
 
 #ifdef DEFAULT_ROM_PATH
