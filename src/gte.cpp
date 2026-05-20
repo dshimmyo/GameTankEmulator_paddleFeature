@@ -94,6 +94,7 @@ bool paddle_touch_mode = false;
 bool dksPaddle_detected = false;
 SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
+#define SIGNAL_PADDLE_MODE 0xA5
 
 void PaddleInit() {
     int num_joysticks = SDL_NumJoysticks();
@@ -431,7 +432,16 @@ uint8_t MemorySync(uint16_t address) {
 }
 
 void MemoryWrite(uint16_t address, uint8_t value) {
-	if(address & 0x8000) {
+	// Catch the game trying to "write" to the Gamepad 2 port
+    if (address == 0x2009) {
+        if (value == SIGNAL_PADDLE_MODE) {
+            paddle_emulation_enabled = true;
+        } else if (value == 0x00) {
+            paddle_emulation_enabled = false;
+        }
+        return; // Absorb the write cycle
+    }
+	else if(address & 0x8000) {
 		if(loadedRomType == RomType::FLASH2M_RAM32K) {
 			if(!(address & 0x4000)) {
 				if(!(cartridge_state.bank_mask & 0x80)) {
@@ -1484,6 +1494,7 @@ else {
 		cartridge_state.write_mode = false;
 		joysticks->Reset();
 		resetQueued = 0;
+		paddle_emulation_enabled = false;
 	}
 	return running;
 }
