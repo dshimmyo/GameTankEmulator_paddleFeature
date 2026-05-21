@@ -434,11 +434,13 @@ uint8_t MemorySync(uint16_t address) {
 void MemoryWrite(uint16_t address, uint8_t value) {
 	// Catch the game trying to "write" to the Gamepad 2 port
     if (address == 0x2009) {
+#ifndef WASM_BUILD
         if (value == SIGNAL_PADDLE_MODE) {
             paddle_emulation_enabled = true;
         } else if (value == 0x00) {
             paddle_emulation_enabled = false;
         }
+#endif
         return; // Absorb the write cycle
     }
 	else if(address & 0x8000) {
@@ -778,6 +780,7 @@ extern "C" {
 #ifdef WASM_BUILD
 	extern "C" {
 		EMSCRIPTEN_KEEPALIVE
+		
 		void SetPaddleMode(bool enabled) {
 			paddle_emulation_enabled = enabled;
 			if (paddle_emulation_enabled){
@@ -1505,7 +1508,9 @@ else {
 		cartridge_state.write_mode = false;
 		joysticks->Reset();
 		resetQueued = 0;
+#ifndef WASM_BUILD
 		paddle_emulation_enabled = false;
+#endif
 	}
 	return running;
 }
