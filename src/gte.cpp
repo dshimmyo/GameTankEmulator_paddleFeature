@@ -52,7 +52,7 @@
 #endif
 
 #ifndef WINDOW_TITLE
-#define WINDOW_TITLE "GameTank Emulator"
+#define WINDOW_TITLE "Brick Game"
 #endif
 
 using namespace std;
