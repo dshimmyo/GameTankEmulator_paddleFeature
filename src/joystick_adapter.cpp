@@ -262,9 +262,21 @@ void JoystickAdapter::SetPaddleBitsDirect(int val) {
     if (p & 0x80) paddle_state |= GameTankButtons::GamepadButtonMask::PADDLE_MODE;
 
 	uint16_t current = held1Mask;
-	uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY your paddle bits
-	current &= ~paddle_bits_mask; 
-	current |= (paddle_state & paddle_bits_mask);
+	
+	//uint16_t paddle_bits_mask = 0xFF0F; // Adjust this mask to cover ONLY your paddle bits
+	// Compose a mask of every bit that belongs to the paddle system
+    uint16_t paddle_bits_mask = GameTankButtons::GamepadButtonMask::PADDLE_UP   |
+                                GameTankButtons::GamepadButtonMask::PADDLE_DOWN |
+                                GameTankButtons::GamepadButtonMask::LEFT        |
+                                GameTankButtons::GamepadButtonMask::RIGHT       |
+                                GameTankButtons::GamepadButtonMask::PADDLE_X       |
+                                GameTankButtons::GamepadButtonMask::PADDLE_Y       |
+                                GameTankButtons::GamepadButtonMask::PADDLE_Z       |
+                                GameTankButtons::GamepadButtonMask::PADDLE_MODE;
+
+
+	current &= ~paddle_bits_mask; // Clear out ONLY the paddle bits from the pre-existing state
+	current |= paddle_state;// Merge the new paddle state back in
 	SetHeldButtons(current);
 }
 void JoystickAdapter::SetPaddleAButtonDirect(bool pressedState) {
