@@ -1416,9 +1416,17 @@ else {
 					}
 				}
             } else if (e.type == SDL_JOYAXISMOTION) {
-                if (dksPaddle_detected && e.jaxis.axis == 0) {
-                    currentPaddleRawValue = e.jaxis.value; 
-                }
+				if (e.jaxis.which == dksPaddle_instanceID){//will only recognize my paddle
+					#ifdef WASM_BUILD
+					if (e.jaxis.axis == 0) {
+						currentPaddleRawValue = e.jaxis.value; 
+					}
+					#else
+					if (dksPaddle_detected && e.jaxis.axis == 0) {
+						currentPaddleRawValue = e.jaxis.value; 
+					}
+					#endif
+				}
             } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
 				//printf("Button Press: %d\n", e.jbutton.button);
 
