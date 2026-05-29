@@ -1043,6 +1043,7 @@ void refreshScreen() {
 				}
 				ImGui::EndMenu();
 			}
+			
 			if(ImGui::BeginMenu("Settings")) {
 				if(ImGui::MenuItem("Controllers")) {
 					toggleControllerOptionsWindow();
@@ -1052,9 +1053,24 @@ void refreshScreen() {
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
 				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
-					//SavePreferences();
 				}
+
 				if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
+					SavePreferences();
+					paddleDetected = false;
+					PaddleInit();
+				}
+				
+				if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
+					if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
+					SavePreferences();
+					paddleDetected = false;
+					if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
+					PaddleInit();
+				}
+				
+				if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
+					if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
 					SavePreferences();
 				}
 
@@ -1142,10 +1158,30 @@ void refreshScreen() {
 			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
-			ImGui::Separator(); // Adds a nice visual line
-			if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
-				joysticks->SetHeldButtons(0);//clear bits on change just in case
+			ImGui::Separator();
+			// if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {//hidden from wrapper mode
+			// 	joysticks->SetHeldButtons(0);//clear bits on change just in case
+			// }
+
+			if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
+				SavePreferences();
+				paddleDetected = false;
+				PaddleInit();
 			}
+			
+			if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
+				if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
+				SavePreferences();
+				paddleDetected = false;
+				if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
+				PaddleInit();
+			}
+			
+			if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
+				if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
+				SavePreferences();
+			}
+
 			ImGui::EndMenu();
 		}
 
