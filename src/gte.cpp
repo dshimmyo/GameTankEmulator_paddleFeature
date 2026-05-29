@@ -1061,20 +1061,20 @@ void refreshScreen() {
 					PaddleInit();
 				}
 				
-				ImGui::SetNextItemWidth(60.0f);
-				if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
-					if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
-					SavePreferences();
-					paddleDetected = false;
-					if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
-					PaddleInit();
-				}
+				// ImGui::SetNextItemWidth(60.0f);
+				// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
+				// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
+				// 	SavePreferences();
+				// 	paddleDetected = false;
+				// 	if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
+				// 	PaddleInit();
+				// }
 				
-				ImGui::SetNextItemWidth(60.0f);
-				if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
-					if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
-					SavePreferences();
-				}
+				// ImGui::SetNextItemWidth(60.0f);
+				// if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
+				// 	if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
+				// 	SavePreferences();
+				// }
 
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
@@ -1170,19 +1170,19 @@ void refreshScreen() {
 				paddleDetected = false;
 				PaddleInit();
 			}
-			ImGui::SetNextItemWidth(60.0f);
-			if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
-				if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
-				SavePreferences();
-				paddleDetected = false;
-				if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
-				PaddleInit();
-			}
-			ImGui::SetNextItemWidth(60.0f);
-			if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
-				if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
-				SavePreferences();
-			}
+			// ImGui::SetNextItemWidth(60.0f);
+			// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
+			// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
+			// 	SavePreferences();
+			// 	paddleDetected = false;
+			// 	if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
+			// 	PaddleInit();
+			// }
+			// ImGui::SetNextItemWidth(60.0f);
+			// if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
+			// 	if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
+			// 	SavePreferences();
+			// }
 
 			ImGui::EndMenu();
 		}
