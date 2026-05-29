@@ -92,6 +92,9 @@ bool paddle_emulation_enabled = false;
 bool paddle_touch_mode = false;
 //bool paddle_delta_emulation_enabled = false;
 bool dksPaddle_detected = false;
+bool use_any_joystick_as_paddle = false;
+int paddle_device_index = 0; //use only if use_any_joystick_as_paddle is enabled
+int paddle_axis_index = 0; //use only if use_any_joystick_as_paddle is enabled
 SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
 #define SIGNAL_PADDLE_MODE 0xA5
@@ -99,27 +102,35 @@ int32_t currentPaddleRawValue = 0;
 void PaddleInit() {
     int num_joysticks = SDL_NumJoysticks();
     dksPaddle_detected = false; 
+	
+	if (use_any_joystick_as_paddle){
+		const char* name = SDL_JoystickNameForIndex(paddle_device_index);
+		SDL_Joystick* j = SDL_JoystickOpen(paddle_device_index); 
+		if (j){
+        	dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+        	dksPaddle_detected = true;
+			printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+		}
+	} else {
+		paddle_axis_index = 0;
+		for (int i = 0; i < num_joysticks; i++) {
+			const char* name = SDL_JoystickNameForIndex(i);
+			
+			// Check if the device name contains your new Product Descriptor
+			if (name != NULL && strstr(name, "Paddle") != NULL) {
+					SDL_Joystick* j = SDL_JoystickOpen(i); 
+				if (j) {
+					dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+					dksPaddle_detected = true;
+					
+					// Optional: Print the full device name to verify OSHP prefix
+					printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+				}
+				break; 
+			}
+		}
+	}
 
-    for (int i = 0; i < num_joysticks; i++) {
-        const char* name = SDL_JoystickNameForIndex(i);
-        
-        // Check if the device name contains your new Product Descriptor
-		if (name != NULL && strstr(name, "Paddle Controller") != NULL) {
-	            SDL_Joystick* j = SDL_JoystickOpen(i); 
-            if (j) {
-                dksPaddle_instanceID = SDL_JoystickInstanceID(j);
-                dksPaddle_detected = true;
-                
-                // Optional: Print the full device name to verify OSHP prefix
-                printf("Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
-            }
-            break; 
-        }
-    }
-
-    //if (!dksPaddle_detected) {
-        //printf("HAQ-Pad not found. Check USB connection.\n");
-    //}
 }
 
 // Static or global variables to track the timer
@@ -134,6 +145,27 @@ void UpdatePaddleStatus() {
             PaddleInit();
             lastPaddleCheck = currentTime;
         }
+    }
+}
+
+void SavePreferences() {
+    std::ofstream file("emulator_prefs.cfg");
+    if (file.is_open()) {
+		// file << paddle_emulation_enabled << "\n";
+        file << use_any_joystick_as_paddle << "\n";
+        file.close();
+    }
+}
+
+void LoadPreferences() {
+    std::ifstream file("emulator_prefs.cfg");
+    if (file.is_open()) {
+		// file >> paddle_emulation_enabled;
+        file >> use_any_joystick_as_paddle;
+        file.close();
+    } else {
+		// paddle_emulation_enabled = false;
+        use_any_joystick_as_paddle = false; // Default behavior
     }
 }
 
@@ -1021,7 +1053,12 @@ void refreshScreen() {
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
 				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
+					//SavePreferences();
 				}
+				if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
+					SavePreferences();
+				}
+
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -1423,11 +1460,11 @@ else {
             } else if (e.type == SDL_JOYAXISMOTION) {
 				if (e.jaxis.which == dksPaddle_instanceID){//will only recognize my paddle
 					#ifdef WASM_BUILD
-					if (e.jaxis.axis == 0) {
+					if (e.jaxis.axis == paddle_axis_index) {
 						currentPaddleRawValue = e.jaxis.value; 
 					}
 					#else
-					if (dksPaddle_detected && e.jaxis.axis == 0) {
+					if (dksPaddle_detected && e.jaxis.axis == paddle_axis_index) {
 						currentPaddleRawValue = e.jaxis.value; 
 					}
 					#endif
@@ -1519,6 +1556,7 @@ else {
 
 int main(int argC, char* argV[]) {
 	srand(time(NULL));
+	LoadPreferences();
 	cartridge_state.rom = new uint8_t[1 << 21];
 
 	const char* rom_file_name = NULL;
