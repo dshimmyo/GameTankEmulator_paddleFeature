@@ -60,7 +60,7 @@ ifeq ($(OS), Windows_NT)
 	BIN_NAME := $(BIN_NAME).exe
 
 	ZIP_NAME = bin/GTE_Win32$(TAG).zip
-	SDL_ROOT = ../SDL2-2.26.2/x86_64-w64-mingw32
+	SDL_ROOT = ../SDL2-devel-2.32.10-mingw/SDL2-2.32.10/x86_64-w64-mingw32
 
 	#INCLUDE_PATHS specifies the additional include paths we'll need
 	INCLUDE_PATHS = -I$(SDL_ROOT)/include/SDL2 $(EXTRA_INCLUDES)

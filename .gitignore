@@ -13,3 +13,4 @@ dist
 !BrickGameWin
 !BrickGameWin/*.exe
 !BrickGameWin/*.dll
+BrickGame*/emulator_prefs.cfg
