@@ -112,6 +112,9 @@ endif
 # Add macOS SDK headers if on Darwin
 ifeq ($(OS), Darwin)
 	ifneq ($(OS), wasm)
+		ifeq ($(WRAPPERMODE), yes)
+			COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
+		endif
     	COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
 	endif
 endif
