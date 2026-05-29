@@ -1054,13 +1054,14 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
-
+				
 				if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
 					SavePreferences();
 					paddleDetected = false;
 					PaddleInit();
 				}
 				
+				ImGui::SetNextItemWidth(60.0f);
 				if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
 					if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
 					SavePreferences();
@@ -1069,6 +1070,7 @@ void refreshScreen() {
 					PaddleInit();
 				}
 				
+				ImGui::SetNextItemWidth(60.0f);
 				if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
 					if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
 					SavePreferences();
@@ -1168,7 +1170,7 @@ void refreshScreen() {
 				paddleDetected = false;
 				PaddleInit();
 			}
-			
+			ImGui::SetNextItemWidth(60.0f);
 			if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
 				if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
 				SavePreferences();
@@ -1176,7 +1178,7 @@ void refreshScreen() {
 				if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
 				PaddleInit();
 			}
-			
+			ImGui::SetNextItemWidth(60.0f);
 			if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
 				if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
 				SavePreferences();
