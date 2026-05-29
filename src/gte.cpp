@@ -91,7 +91,7 @@ int muteMask = 0;
 bool paddle_emulation_enabled = false;
 bool paddle_touch_mode = false;
 //bool paddle_delta_emulation_enabled = false;
-bool dksPaddle_detected = false;
+bool paddleDetected = false;
 bool use_any_joystick_as_paddle = false;
 int paddle_device_index = 0; //use only if use_any_joystick_as_paddle is enabled
 int paddle_axis_index = 0; //use only if use_any_joystick_as_paddle is enabled
@@ -101,29 +101,28 @@ int32_t currentPaddleRawValue = 0;
 
 void PaddleInit() {
     int num_joysticks = SDL_NumJoysticks();
-    dksPaddle_detected = false; 
-	
+    paddleDetected = false; 
+	dksPaddle_instanceID = -1;
+
 	if (use_any_joystick_as_paddle){
-		const char* name = SDL_JoystickNameForIndex(paddle_device_index);
-		SDL_Joystick* j = SDL_JoystickOpen(paddle_device_index); 
-		if (j){
-        	dksPaddle_instanceID = SDL_JoystickInstanceID(j);
-        	dksPaddle_detected = true;
-			printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+		if (paddle_device_index >= 0 && paddle_device_index < num_joysticks) {
+			SDL_Joystick* j = SDL_JoystickOpen(paddle_device_index); 
+			if (j){
+				dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+				paddleDetected = true;
+				const char* name = SDL_JoystickNameForIndex(paddle_device_index);
+				printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+			}
 		}
 	} else {
 		paddle_axis_index = 0;
 		for (int i = 0; i < num_joysticks; i++) {
 			const char* name = SDL_JoystickNameForIndex(i);
-			
-			// Check if the device name contains your new Product Descriptor
 			if (name != NULL && strstr(name, "Paddle") != NULL) {
-					SDL_Joystick* j = SDL_JoystickOpen(i); 
+				SDL_Joystick* j = SDL_JoystickOpen(i); 
 				if (j) {
 					dksPaddle_instanceID = SDL_JoystickInstanceID(j);
-					dksPaddle_detected = true;
-					
-					// Optional: Print the full device name to verify OSHP prefix
+					paddleDetected = true;
 					printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
 				}
 				break; 
@@ -139,7 +138,7 @@ const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
 
 void UpdatePaddleStatus() {
     // Only run the scan if we don't have a paddle yet
-    if (!dksPaddle_detected) {
+    if (!paddleDetected) {
         uint32_t currentTime = SDL_GetTicks();
         if (currentTime - lastPaddleCheck > PADDLE_CHECK_INTERVAL) {
             PaddleInit();
@@ -402,7 +401,7 @@ uint8_t* GetRAM(const uint16_t address) {
 uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2007) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
-        if (dksPaddle_detected) {
+        if (paddleDetected) {
             // Tell the game: "This is a real physical dial, please clamp rotation"
             status |= 0x02; 
         } 
@@ -1453,21 +1452,23 @@ else {
 					}
 				}
             } else if (e.type == SDL_JOYAXISMOTION) {
-				if (e.jaxis.which == dksPaddle_instanceID){//will only recognize my paddle
-					#ifdef WASM_BUILD
-					if (e.jaxis.axis == paddle_axis_index) {
+				#ifdef WASM_BUILD
+				if (e.jaxis.axis == paddle_axis_index) {
+					if (use_any_joystick_as_paddle || e.jaxis.which == dksPaddle_instanceID) {
 						currentPaddleRawValue = e.jaxis.value; 
 					}
-					#else
-					if (dksPaddle_detected && e.jaxis.axis == paddle_axis_index) {
-						currentPaddleRawValue = e.jaxis.value; 
-					}
-					#endif
 				}
+				#else
+				if (paddleDetected && e.jaxis.axis == paddle_axis_index) {
+					if (use_any_joystick_as_paddle || e.jaxis.which == dksPaddle_instanceID) {
+						currentPaddleRawValue = e.jaxis.value;
+					}               
+				}
+				#endif
             } else if (e.type == SDL_JOYBUTTONDOWN || e.type == SDL_JOYBUTTONUP) {
 				//printf("Button Press: %d\n", e.jbutton.button);
 
-                if (dksPaddle_detected && e.jbutton.button == 0) {
+                if (paddleDetected && e.jbutton.button == 0) {
 
 					bool isDown = (e.type == SDL_JOYBUTTONDOWN);
 					
@@ -1475,8 +1476,8 @@ else {
 
                 }
 			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
-				if (dksPaddle_detected && e.jdevice.which == dksPaddle_instanceID) {
-					dksPaddle_detected = false;
+				if (paddleDetected && e.jdevice.which == dksPaddle_instanceID) {
+					paddleDetected = false;
 					dksPaddle_instanceID = -1; // Reset it
 					printf("DKS Paddle Lost. Reverting to Mouse.\n");
 				}
