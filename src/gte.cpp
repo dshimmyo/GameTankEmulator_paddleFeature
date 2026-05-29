@@ -54,7 +54,7 @@
 #ifndef WINDOW_TITLE
 #define WINDOW_TITLE "Brick Game"
 #endif
-#define WRAPPER_MODE
+
 using namespace std;
 
 const int GT_WIDTH = 128;
