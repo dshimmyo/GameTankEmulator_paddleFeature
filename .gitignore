@@ -10,3 +10,6 @@ wasmbuild/*
 roms/*.sav
 dist
 *.code-workspace
+!BrickGameWin
+!BrickGameWin/*.exe
+!BrickGameWin/*.dll
