@@ -96,8 +96,10 @@ void load_joystick_config(std::vector<InputBinding> &bindings) {
 						bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyHat"));
 						break;
 						case BindingTypes::JOYSTICK_BUTTON_SYSTEM:
-						bind.host_input.joy_button = (int64_t) (*tbl->get_as<int64_t>("joyButton"));
-						break;
+                        if (auto ptr = tbl->get_as<int64_t>("joyButton")) {
+                            bind.host_input.joy_button = (int64_t)(*ptr);
+                        }
+                        break;
 					}
 					bindings.emplace_back(bind);
 			}
