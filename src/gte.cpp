@@ -1227,7 +1227,7 @@ EM_BOOL mainloop(double time, void* userdata) {
         frame_time_accumulator -= target_frame_period_ms;
 #else
 UpdatePaddleStatus();//lazy dev checker
-if (dksPaddle_detected) {
+if (paddleDetected) {
     // We treat the full joystick range as our "Window Width"
     // Logical range of SDL Axis is 65535 units wide
     const int virtualWidth = 65535;
