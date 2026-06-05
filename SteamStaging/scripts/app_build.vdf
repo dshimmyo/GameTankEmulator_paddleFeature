@@ -1,0 +1,12 @@
+"AppBuild"
+{
+  "AppID" "1087090"                 
+  "Desc" "Windows Version 1.0.0"
+  "ContentRoot" "../content/"
+  "BuildOutput" "../output/"
+
+  "Depots"
+  {
+    "1087091" "depot_1087091.vdf" 
+  }
+}

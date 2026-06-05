@@ -1,0 +1,14 @@
+[2026-06-04 16:09:04]: Starting build for depot 1087091, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/windows_depot/", build flags 0x0
+[2026-06-04 16:09:04]: Building file listing for depot 1087091 ...
+[2026-06-04 16:09:04]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/windows_depot * -> .
+[2026-06-04 16:09:04]: Found 3 files (12 MB) for depot 1087091
+[2026-06-04 16:09:04]: Building depot 1087091, no baseline manifest
+[2026-06-04 16:09:05]: Found 13 new chunks ( 0 used previously ) for depot 1087091, took 0 minutes, 0 seconds
+[2026-06-04 16:09:05]: Changes to baseline manifest 0 :
+[2026-06-04 16:09:05]: Added  : "BrickGame.exe" 8821 KB 
+[2026-06-04 16:09:05]: Added  : "gamedata.gtr" 2048 KB 
+[2026-06-04 16:09:05]: Added  : "SDL2.dll" 1744 KB 
+[2026-06-04 16:09:05]: Summary: 3 files added (12.32 MB), 0 files changed (0 bytes), 0 files removed (0 bytes)
+[2026-06-04 16:09:05]: Uploading new manifest to depot_ingest.discovery.steamserver.net (handle 7106946348315751010, 1055 bytes).
+[2026-06-04 16:09:05]: Uploading 13 out of 13 missing chunks.
+[2026-06-04 16:09:08]: Success! New manifestID 7455078255712977037 created and 13 new chunks uploaded.
