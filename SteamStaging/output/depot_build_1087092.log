@@ -1,14 +1,12 @@
-[2026-06-08 19:21:02]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
-[2026-06-08 19:21:02]: Building file listing for depot 1087092 ...
-[2026-06-08 19:21:02]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
-[2026-06-08 19:21:02]: Found 3 files (7 MB) for depot 1087092
-[2026-06-08 19:21:03]: Building depot 1087092, no baseline manifest
-[2026-06-08 19:21:03]: Found 8 new chunks ( 0 used previously ) for depot 1087092, took 0 minutes, 0 seconds
-[2026-06-08 19:21:03]: Changes to baseline manifest 0 :
-[2026-06-08 19:21:03]: Added  : "BrickGame" 4046 KB 
-[2026-06-08 19:21:03]: Added  : "gamedata.gtr" 2048 KB 
-[2026-06-08 19:21:03]: Added  : "libSDL2-2.0.0.dylib" 1479 KB 
-[2026-06-08 19:21:03]: Summary: 3 files added (7.39 MB), 0 files changed (0 bytes), 0 files removed (0 bytes)
-[2026-06-08 19:21:03]: Uploading new manifest to depot_ingest.discovery.steamserver.net (handle 2306677020571119968, 914 bytes).
-[2026-06-08 19:21:03]: Uploading 8 out of 8 missing chunks.
-[2026-06-08 19:21:06]: Success! New manifestID 6245925042187535091 created and 8 new chunks uploaded.
+[2026-06-14 12:55:30]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
+[2026-06-14 12:55:30]: Building file listing for depot 1087092 ...
+[2026-06-14 12:55:30]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
+[2026-06-14 12:55:30]: Found 3 files (7 MB) for depot 1087092
+[2026-06-14 12:55:31]: Building depot 1087092, baseline manifest 6245925042187535091 (3 files)
+[2026-06-14 12:55:31]: Found 8 new chunks ( 8 used previously ) for depot 1087092, took 0 minutes, 0 seconds
+[2026-06-14 12:55:31]: Changes to baseline manifest 6245925042187535091 :
+[2026-06-14 12:55:31]: Changed: "BrickGame" 4046 KB size, 4046 KB changed 
+[2026-06-14 12:55:31]: Summary: 0 files added (0 bytes), 1 files changed (3.95 MB), 0 files removed (0 bytes)
+[2026-06-14 12:55:31]: Uploading new manifest to depot_ingest.discovery.steamserver.net (handle 11147007445565651452, 915 bytes).
+[2026-06-14 12:55:32]: Uploading 4 out of 4 missing chunks.
+[2026-06-14 12:55:34]: Success! New manifestID 9176779769715081774 created and 4 new chunks uploaded.
