@@ -1,12 +1,13 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "Windows Version 1.0.0"
+  "Desc" "v1.0.0 Multiplatform"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
   "Depots"
   {
     "1087091" "depot_1087091.vdf" 
+    "1087092" "depot_1087092.vdf"
   }
 }
