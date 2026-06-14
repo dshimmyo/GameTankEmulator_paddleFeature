@@ -92,7 +92,7 @@ bool paddle_emulation_enabled = false;
 bool paddle_touch_mode = false;
 //bool paddle_delta_emulation_enabled = false;
 bool paddleDetected = false;
-bool use_any_joystick_as_paddle = false;
+bool use_any_joystick_as_paddle = true;//this needs to be on at all times, hard-coded
 int paddle_device_index = 0; //use only if use_any_joystick_as_paddle is enabled
 int paddle_axis_index = 0; //use only if use_any_joystick_as_paddle is enabled
 SDL_JoystickID dksPaddle_instanceID = -1;
@@ -151,7 +151,7 @@ void SavePreferences() {
     std::ofstream file("emulator_prefs.cfg");
     if (file.is_open()) {
 		// file << paddle_emulation_enabled << "\n";
-        file << use_any_joystick_as_paddle << "\n";
+        //file << use_any_joystick_as_paddle << "\n";//no longer an option, is always on
         file.close();
     }
 }
@@ -160,11 +160,11 @@ void LoadPreferences() {
     std::ifstream file("emulator_prefs.cfg");
     if (file.is_open()) {
 		// file >> paddle_emulation_enabled;
-        file >> use_any_joystick_as_paddle;
+        //file >> use_any_joystick_as_paddle;//deprecated
         file.close();
     } else {
 		// paddle_emulation_enabled = false;
-        use_any_joystick_as_paddle = false; // Default behavior
+        //use_any_joystick_as_paddle = true; // Default behavior changed to true but also commented out
     }
 }
 
@@ -1055,11 +1055,11 @@ void refreshScreen() {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
 				
-				if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
-					SavePreferences();
-					paddleDetected = false;
-					PaddleInit();
-				}
+				// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
+				// 	SavePreferences();
+				// 	paddleDetected = false;
+				// 	PaddleInit();
+				// }
 				
 				// ImGui::SetNextItemWidth(60.0f);
 				// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
@@ -1165,11 +1165,11 @@ void refreshScreen() {
 			// 	joysticks->SetHeldButtons(0);//clear bits on change just in case
 			// }
 
-			if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
-				SavePreferences();
-				paddleDetected = false;
-				PaddleInit();
-			}
+			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
+			// 	SavePreferences();
+			// 	paddleDetected = false;
+			// 	PaddleInit();
+			// }
 			// ImGui::SetNextItemWidth(60.0f);
 			// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
 			// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
