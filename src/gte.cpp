@@ -1592,6 +1592,8 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 		resetQueued = 0;
 #ifndef WASM_BUILD
 		paddle_emulation_enabled = false;
+		paddleDetected = false;
+		dksPaddle_instanceID = -1; // Reset it
 #endif
 	}
 	return running;
