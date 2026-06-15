@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.1 Improved Joystick Support"
+  "Desc" "v1.0.2 Improved Joystick Support"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
