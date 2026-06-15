@@ -88,7 +88,7 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MANUAL 1
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
-bool paddle_emulation_enabled = false;
+bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
 bool use_any_joystick_as_paddle = true;//this needs to be on at all times, hard-coded
@@ -472,10 +472,10 @@ void MemoryWrite(uint16_t address, uint8_t value) {
     if (address == 0x2009) {
 #ifndef WASM_BUILD
         if (value == SIGNAL_PADDLE_MODE) {
-            paddle_emulation_enabled = true;
+            //paddle_emulation_enabled = true;//user set only
 			romRequestedPaddle = true;
         } else if (value == 0x00) {
-            paddle_emulation_enabled = false;
+            //paddle_emulation_enabled = false;//user set only
 			romRequestedPaddle = false;
         }
 #endif
@@ -1058,7 +1058,7 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
-				if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {
+				if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
 				
@@ -1168,9 +1168,9 @@ void refreshScreen() {
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
 			ImGui::Separator();
-			// if (ImGui::Checkbox("Enable Paddle Emulation", &paddle_emulation_enabled)) {//hidden from wrapper mode
-			// 	joysticks->SetHeldButtons(0);//clear bits on change just in case
-			// }
+			if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {//hidden from wrapper mode
+				joysticks->SetHeldButtons(0);//clear bits on change just in case
+			}
 
 			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
 			// 	SavePreferences();
@@ -1236,17 +1236,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 UpdatePaddleStatus();//lazy dev checker
 
 if (romRequestedPaddle){ //master switch for paddle behavior
-	if (paddleDetected) {
-		// We treat the full joystick range as our "Window Width"
-		// Logical range of SDL Axis is 65535 units wide
-		const int virtualWidth = 65535;
-		
-		// Offset the raw value (-32768 to 32767) to be 0 to 65535
-		int normalizedX = currentPaddleRawValue + 32768;
-
-		joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
-	} 
-	else if (paddle_emulation_enabled) {
+	
+	if (paddle_emulation_enabled) { //mouse paddle emulation, overrides joystick behavior
 		if (paddle_touch_mode){ //touch / absolute
 			// Fallback to mouse if hardware isn't plugged in
 			int mx, my, winW, winH;
@@ -1266,9 +1257,19 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 			}
 		}
 	}//paddle emulation
-	else {
-		if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
-	}
+	else if (paddleDetected) {
+		// We treat the full joystick range as our "Window Width"
+		// Logical range of SDL Axis is 65535 units wide
+		const int virtualWidth = 65535;
+		
+		// Offset the raw value (-32768 to 32767) to be 0 to 65535
+		int normalizedX = currentPaddleRawValue + 32768;
+
+		joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
+	} 
+	// else {
+	// 	if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+	// }
 }
 #endif
 
@@ -1526,7 +1527,7 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 				if (paddleDetected && e.jdevice.which == dksPaddle_instanceID) {
 					paddleDetected = false;
 					dksPaddle_instanceID = -1; // Reset it
-					printf("Paddle/JoyStick Lost. Reverting to Mouse.\n");
+					printf("Paddle/JoyStick Disconnected\n");
 				}
             } else {
 				joysticks->update(&e, showMenu || resetQueued);
@@ -1591,7 +1592,7 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 		joysticks->Reset();
 		resetQueued = 0;
 #ifndef WASM_BUILD
-		paddle_emulation_enabled = false;
+		//paddle_emulation_enabled = false;//set by user as an override
 		paddleDetected = false;
 		dksPaddle_instanceID = -1; // Reset it
 #endif
