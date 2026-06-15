@@ -1507,7 +1507,7 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 					}
 				}
 				#else
-				if (paddleDetected && e.jaxis.axis == paddle_axis_index) {
+				if (paddleDetected && e.jaxis.axis == paddle_axis_index && !paddle_emulation_enabled) {
 					if (use_any_joystick_as_paddle || e.jaxis.which == dksPaddle_instanceID) {
 						currentPaddleRawValue = e.jaxis.value;
 					}               
