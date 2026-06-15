@@ -102,38 +102,71 @@ int32_t currentPaddleRawValue = 0;
 
 void PaddleInit() {
     int num_joysticks = SDL_NumJoysticks();
-    paddleDetected = false; 
-	dksPaddle_instanceID = -1;
-
-	if (use_any_joystick_as_paddle){
-		if (paddle_device_index >= 0 && paddle_device_index < num_joysticks) {
-			SDL_Joystick* j = SDL_JoystickOpen(paddle_device_index); 
-			if (j){
-				dksPaddle_instanceID = SDL_JoystickInstanceID(j);
-				paddleDetected = true;
-				const char* name = SDL_JoystickNameForIndex(paddle_device_index);
-				if (name != NULL && strstr(name, "Paddle") != NULL) {
-					printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
-				} else {
-					printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
-				}
-			}
-		}
-	} else {
-		paddle_axis_index = 0;
-		for (int i = 0; i < num_joysticks; i++) {
-			const char* name = SDL_JoystickNameForIndex(i);
-			if (name != NULL && strstr(name, "Paddle") != NULL) {
-				SDL_Joystick* j = SDL_JoystickOpen(i); 
-				if (j) {
-					dksPaddle_instanceID = SDL_JoystickInstanceID(j);
-					paddleDetected = true;
-					printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
-				}
-				break; 
+	const char* nametest = NULL;
+	SDL_JoystickID bakInstanceID = -1;
+	if (dksPaddle_instanceID != -1){
+		bakInstanceID = dksPaddle_instanceID;
+		SDL_Joystick* test = SDL_JoystickFromInstanceID(dksPaddle_instanceID);
+		if (test){		
+			nametest = SDL_JoystickName(test);
+			if (nametest != NULL && strstr(nametest, "Paddle") != NULL) {
+				return;//don't need a refresh if the joystick is already a paddle
 			}
 		}
 	}
+
+    paddleDetected = false; 
+	dksPaddle_instanceID = -1;
+	SDL_JoystickID first_InstanceID = -1;
+	int first_device_index = -1;
+	const char* name = "";
+
+	//if (use_any_joystick_as_paddle){
+		paddle_axis_index = 0;
+		for (int i = 0; i < num_joysticks; i++) {
+			name = SDL_JoystickNameForIndex(i);
+			//if (name != NULL && strstr(name, "Paddle") != NULL) {
+				SDL_Joystick* j = SDL_JoystickOpen(i); 
+				if (j) {//valid joystick
+					if (first_InstanceID == -1) {
+						first_InstanceID = SDL_JoystickInstanceID(j);
+						first_device_index = i;
+					}
+					if (name != NULL && strstr(name, "Paddle") != NULL) {
+						dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+						if (dksPaddle_instanceID != bakInstanceID){
+							printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+						}
+						paddleDetected = true;
+						paddle_device_index = i;
+						break;
+					}
+					paddleDetected = true;
+				}
+				//break; 
+			//}
+		}
+		if (first_InstanceID > -1 && dksPaddle_instanceID == -1){//not an official paddle but still valid
+			dksPaddle_instanceID = first_InstanceID;
+			paddle_device_index = first_device_index;
+			if (dksPaddle_instanceID != bakInstanceID){
+				printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+			}
+		}
+
+		// automatically use the first joystick - doesn't work on steamdeck
+		// SDL_Joystick* j = SDL_JoystickOpen(0); 
+		// if (j){
+		// 	dksPaddle_instanceID = SDL_JoystickInstanceID(j);
+		// 	paddleDetected = true;
+		// 	const char* name = SDL_JoystickNameForIndex(paddle_device_index);
+		// 	if (name != NULL && strstr(name, "Paddle") != NULL) {
+		// 		printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+		// 	} else {
+		// 		printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+		// 	}
+		// }
+	//} 
 
 }
 
@@ -143,13 +176,13 @@ const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
 
 void UpdatePaddleStatus() {
     // Only run the scan if we don't have a paddle yet
-    if (!paddleDetected) {
-        uint32_t currentTime = SDL_GetTicks();
-        if (currentTime - lastPaddleCheck > PADDLE_CHECK_INTERVAL) {
-            PaddleInit();
-            lastPaddleCheck = currentTime;
-        }
-    }
+    //if (!paddleDetected) { //runs no matter what, because someone might plug in multiple controllers like a weirdo
+	uint32_t currentTime = SDL_GetTicks();
+	if (currentTime - lastPaddleCheck > PADDLE_CHECK_INTERVAL) {
+		PaddleInit();
+		lastPaddleCheck = currentTime;
+	}
+    //}
 }
 
 void SavePreferences() {
@@ -1508,7 +1541,7 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 				}
 				#else
 				if (paddleDetected && e.jaxis.axis == paddle_axis_index && !paddle_emulation_enabled) {
-					if (use_any_joystick_as_paddle || e.jaxis.which == dksPaddle_instanceID) {
+					if (/*use_any_joystick_as_paddle || */ e.jaxis.which == dksPaddle_instanceID) {
 						currentPaddleRawValue = e.jaxis.value;
 					}               
 				}
