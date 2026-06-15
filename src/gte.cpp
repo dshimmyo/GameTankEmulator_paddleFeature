@@ -90,14 +90,15 @@ int resetQueued = 0;
 int muteMask = 0;
 bool paddle_emulation_enabled = false;
 bool paddle_touch_mode = false;
-//bool paddle_delta_emulation_enabled = false;
 bool paddleDetected = false;
 bool use_any_joystick_as_paddle = true;//this needs to be on at all times, hard-coded
 int paddle_device_index = 0; //use only if use_any_joystick_as_paddle is enabled
 int paddle_axis_index = 0; //use only if use_any_joystick_as_paddle is enabled
+bool romRequestedPaddle = false; // source of truth
 SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
 #define SIGNAL_PADDLE_MODE 0xA5
+#define RECEIVE_PADDLE_MODE_ADDRESS 0x2009 //memory location
 
 void PaddleInit() {
     int num_joysticks = SDL_NumJoysticks();
@@ -406,7 +407,7 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2007) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
         if (paddleDetected) {
-            // Tell the game: "This is a real physical dial, please clamp rotation"
+            // Tell the game: "This is a physical dial, not mouse, remap rotation"
             status |= 0x02; 
         } 
         return status;
@@ -472,8 +473,10 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 #ifndef WASM_BUILD
         if (value == SIGNAL_PADDLE_MODE) {
             paddle_emulation_enabled = true;
+			romRequestedPaddle = true;
         } else if (value == 0x00) {
             paddle_emulation_enabled = false;
+			romRequestedPaddle = false;
         }
 #endif
         return; // Absorb the write cycle
@@ -1231,40 +1234,42 @@ EM_BOOL mainloop(double time, void* userdata) {
         frame_time_accumulator -= target_frame_period_ms;
 #else
 UpdatePaddleStatus();//lazy dev checker
-if (paddleDetected) {
-    // We treat the full joystick range as our "Window Width"
-    // Logical range of SDL Axis is 65535 units wide
-    const int virtualWidth = 65535;
-    
-    // Offset the raw value (-32768 to 32767) to be 0 to 65535
-    int normalizedX = currentPaddleRawValue + 32768;
 
-    joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
-} 
-else if (paddle_emulation_enabled) {
-	if (paddle_touch_mode){ //touch / absolute
-		// Fallback to mouse if hardware isn't plugged in
-		int mx, my, winW, winH;
-		SDL_GetMouseState(&mx, &my);
-		SDL_GetWindowSize(mainWindow, &winW, &winH);
-		joysticks->UpdatePaddleFromCursorPos(0, mx, winW);
-	} else { //mouse mode delta
-		if (showMenu) {
-			if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
-		} else {
-			// Not in menu? Ensure the mouse is captured
-			if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
-			
-			int dx, dy;
-			SDL_GetRelativeMouseState(&dx, &dy);
-			joysticks->UpdatePaddleFromMouse(0, dx);
+if (romRequestedPaddle){ //master switch for paddle behavior
+	if (paddleDetected) {
+		// We treat the full joystick range as our "Window Width"
+		// Logical range of SDL Axis is 65535 units wide
+		const int virtualWidth = 65535;
+		
+		// Offset the raw value (-32768 to 32767) to be 0 to 65535
+		int normalizedX = currentPaddleRawValue + 32768;
+
+		joysticks->UpdatePaddleFromCursorPos(0, normalizedX, virtualWidth);
+	} 
+	else if (paddle_emulation_enabled) {
+		if (paddle_touch_mode){ //touch / absolute
+			// Fallback to mouse if hardware isn't plugged in
+			int mx, my, winW, winH;
+			SDL_GetMouseState(&mx, &my);
+			SDL_GetWindowSize(mainWindow, &winW, &winH);
+			joysticks->UpdatePaddleFromCursorPos(0, mx, winW);
+		} else { //mouse mode delta
+			if (showMenu) {
+				if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
+			} else {
+				// Not in menu? Ensure the mouse is captured
+				if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
+				
+				int dx, dy;
+				SDL_GetRelativeMouseState(&dx, &dy);
+				joysticks->UpdatePaddleFromMouse(0, dx);
+			}
 		}
+	}//paddle emulation
+	else {
+		if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
 	}
-}//paddle emulation
-else {
-    if(SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
 }
-	
 #endif
 
 
@@ -1521,7 +1526,7 @@ else {
 				if (paddleDetected && e.jdevice.which == dksPaddle_instanceID) {
 					paddleDetected = false;
 					dksPaddle_instanceID = -1; // Reset it
-					printf("DKS Paddle Lost. Reverting to Mouse.\n");
+					printf("Paddle/JoyStick Lost. Reverting to Mouse.\n");
 				}
             } else {
 				joysticks->update(&e, showMenu || resetQueued);
