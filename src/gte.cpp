@@ -111,7 +111,11 @@ void PaddleInit() {
 				dksPaddle_instanceID = SDL_JoystickInstanceID(j);
 				paddleDetected = true;
 				const char* name = SDL_JoystickNameForIndex(paddle_device_index);
-				printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+				if (name != NULL && strstr(name, "Paddle") != NULL) {
+					printf("Paddle Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+				} else {
+					printf("Joystick Hardware Verified: %s (Instance ID: %d)\n", name, dksPaddle_instanceID);
+				}
 			}
 		}
 	} else {
