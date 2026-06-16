@@ -200,7 +200,7 @@ const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
 void SavePreferences() {
     std::ofstream file("emulator_prefs.cfg");
     if (file.is_open()) {
-		// file << paddle_emulation_enabled << "\n";
+		file << paddle_emulation_enabled << "\n";//sticky mouse paddle
         //file << use_any_joystick_as_paddle << "\n";//no longer an option, is always on
         file.close();
     }
@@ -209,11 +209,11 @@ void SavePreferences() {
 void LoadPreferences() {
     std::ifstream file("emulator_prefs.cfg");
     if (file.is_open()) {
-		// file >> paddle_emulation_enabled;
+		file >> paddle_emulation_enabled;
         //file >> use_any_joystick_as_paddle;//deprecated
         file.close();
     } else {
-		// paddle_emulation_enabled = false;
+		paddle_emulation_enabled = false;
         //use_any_joystick_as_paddle = true; // Default behavior changed to true but also commented out
     }
 }
@@ -1104,6 +1104,7 @@ void refreshScreen() {
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
 				if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {
+					SavePreferences();
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
 				
@@ -1214,6 +1215,7 @@ void refreshScreen() {
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
 			ImGui::Separator();
 			if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {//hidden from wrapper mode
+				SavePreferences();
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
 
