@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.3 Robust Joystick Support"
+  "Desc" "v1.0.4 Sticky Mouse Paddle Setting"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
