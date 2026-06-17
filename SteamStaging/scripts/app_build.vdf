@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.5 ABZX mouse fallback reset fix"
+  "Desc" "v1.0.6 mouse paddle not setranged"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
