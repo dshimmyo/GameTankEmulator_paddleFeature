@@ -1283,8 +1283,8 @@ EM_BOOL mainloop(double time, void* userdata) {
 //UpdatePaddleStatus();//lazy dev checker //is a bad idea to run this periodically
 
 if (romRequestedPaddle){ //master switch for paddle behavior
-	
-	if (paddle_emulation_enabled) { //mouse paddle emulation, overrides joystick behavior
+	//fallback to paddle emulation if no paddle is detected
+	if (paddle_emulation_enabled || !paddleDetected) { //mouse paddle emulation, overrides joystick behavior
 		if (paddle_touch_mode){ //touch / absolute
 			// Fallback to mouse if hardware isn't plugged in
 			int mx, my, winW, winH;
