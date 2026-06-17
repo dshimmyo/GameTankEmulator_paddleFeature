@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.4 Sticky Mouse Paddle Setting"
+  "Desc" "v1.0.5 ABZX mouse fallback reset fix"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
