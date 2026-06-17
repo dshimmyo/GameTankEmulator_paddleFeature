@@ -1644,6 +1644,8 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 		cartridge_state.write_mode = false;
 		joysticks->Reset();
 		resetQueued = 0;
+		joysticks->SetHeldButtons(0);
+		currentPaddleRawValue = 0;
 #ifndef WASM_BUILD
 		//paddle_emulation_enabled = false;//set by user as an override
 		//paddleDetected = false; //reset shouldn't affect this
