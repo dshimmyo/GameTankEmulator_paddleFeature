@@ -451,10 +451,13 @@ uint8_t* GetRAM(const uint16_t address) {
 uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2007) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
-        if (paddleDetected && !paddle_emulation_enabled) {//because now we can override paddle with mouse if we want
+        if (paddleDetected) {//because now we can override paddle with mouse if we want
             // Tell the game: "This is a physical dial, not mouse, remap rotation"
-            status |= 0x02; 
+            status |= 0x02; //01010101
         } 
+		if (paddle_emulation_enabled){
+			status |= 0x08; //
+		}
         return status;
 	} else if(address & 0x8000) {
 		switch(loadedRomType) {
