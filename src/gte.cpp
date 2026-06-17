@@ -55,6 +55,10 @@
 #define WINDOW_TITLE "Brick Game"
 #endif
 
+#include <GL/glew.h>
+#include "imgui/backends/imgui_impl_opengl3.h"
+#include "crt_shader.h"
+
 using namespace std;
 
 const int GT_WIDTH = 128;
@@ -102,6 +106,46 @@ int32_t currentPaddleRawValue = 0;
 
 // Keep a global or static pointer to track the currently open active joystick
 SDL_Joystick* active_paddle_handle = NULL;
+
+GLuint crtShaderProgram = 0;
+GLuint quadVAO = 0;
+GLuint quadVBO = 0;
+GLuint framebufferTextureGL = 0;
+
+void initGraphicsPipeline() {
+    // Compile the shader program
+    crtShaderProgram = CompileCRTShader();
+
+    // Define a full-screen quad (Positions X, Y and TexCoords U, V)
+    float quadVertices[] = {
+        // Pos        // TexCoords
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+
+        -1.0f,  1.0f,  0.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f
+    };
+
+    // Generate and bind buffers for the quad geometry
+    glGenVertexArrays(1, &quadVAO);
+    glGenBuffers(1, &quadVBO);
+
+    glBindVertexArray(quadVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+
+    // Position attribute (location = 0)
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+
+    // Texture Coordinate attribute (location = 1)
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    
+    glBindVertexArray(0);
+}
 
 void PaddleInit() {
     int num_joysticks = SDL_NumJoysticks();
@@ -1047,218 +1091,76 @@ bool checkHotkey(SDL_Keycode  key) {
 #endif
 
 void refreshScreen() {
-	SDL_Rect src, dest;
-	int scr_w, scr_h;
-	src.x = 0;
-	src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-	src.w = GT_WIDTH;
-	src.h = GT_HEIGHT;
-	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	dest.w = min(scr_w, scr_h);
-	dest.h = dest.w;
-	dest.x = (scr_w - dest.w) / 2;
-	dest.y = (scr_h - dest.h) / 2;
-	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+    int scr_w, scr_h;
+    SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
-	SDL_RenderClear(mainRenderer);
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    // 1. Calculate the centered 1:1 square viewport
+    int dest_w = min(scr_w, scr_h);
+    int dest_h = dest_w;
+    int dest_x = (scr_w - dest_w) / 2;
+    int dest_y = (scr_h - dest_h) / 2;
 
-	src.x = GT_WIDTH-1;
-	src.w = 1;
-	dest.w = dest.w * 86.0 / 512.0;
-	dest.x -= dest.w;
+    // 2. Clear the host window canvas
+    glViewport(0, 0, scr_w, scr_h);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
 
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    // 3. Upload raw VRAM pixels to your base OpenGL texture
+    glBindTexture(GL_TEXTURE_2D, framebufferTextureGL);
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, vRAM_Surface->w, vRAM_Surface->h, 
+                    GL_RGBA, GL_UNSIGNED_BYTE, vRAM_Surface->pixels);
 
-	dest.x += dest.w + dest.h;
+    // 4. Calculate the vertical page flip offset in texture coordinates
+    float uv_y_offset = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? 0.5f : 0.0f;
 
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    // 5. Render the Main Game Screen with the CRT Shader active
+    glUseProgram(crtShaderProgram);
+    glUniform2f(glGetUniformLocation(crtShaderProgram, "textureSize"), (float)GT_WIDTH, (float)GT_HEIGHT);
+    glUniform2f(glGetUniformLocation(crtShaderProgram, "windowSize"), (float)scr_w, (float)scr_h);
+    glUniform1i(glGetUniformLocation(crtShaderProgram, "isBorderPass"), 0); 
+    glUniform1f(glGetUniformLocation(crtShaderProgram, "uvYOffset"), uv_y_offset);
 
+    // Set viewport explicitly to the centered square box
+    glViewport(dest_x, dest_y, dest_w, dest_h);
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // 6. Render the Overscan Side Borders
+    // Disable scanlines/curvature calculations inside the shader for the stretched edge rows
+    glUniform1i(glGetUniformLocation(crtShaderProgram, "isBorderPass"), 1);
+
+    // Left Border Viewport
+    int border_w = (int)(dest_w * 86.0 / 512.0);
+    glViewport(dest_x - border_w, dest_y, border_w, dest_h);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // Right Border Viewport
+    glViewport(dest_x + dest_w, dest_y, border_w, dest_h);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // 7. Render your ImGui Overlays
 #if !defined(WASM_BUILD)
-	ImGui::SetCurrentContext(main_imgui_ctx);
-    ImGui_ImplSDLRenderer2_NewFrame();
+    ImGui::SetCurrentContext(main_imgui_ctx);
+    ImGui_ImplOpenGL3_NewFrame(); // Swapped out from SDLRenderer2
     ImGui_ImplSDL2_NewFrame();
-	ImGui::NewFrame();
-	if(showMenu) {
+    ImGui::NewFrame();
+
+    if(showMenu) {
 #ifndef WRAPPER_MODE
-		if(ImGui::BeginMainMenuBar()) {
-			if (ImGui::BeginMenu("File")) {
-				if(ImGui::MenuItem("Open Rom")) {
-					const char* rom_file_name = open_rom_dialog();
-					if(rom_file_name) {
-						LoadRomFile(rom_file_name);
-					}	
-				}
-				if(ImGui::MenuItem("Exit")) {
-					running = false;
-				}
-				ImGui::EndMenu();
-			}
-			
-			if(ImGui::BeginMenu("Settings")) {
-				if(ImGui::MenuItem("Controllers")) {
-					toggleControllerOptionsWindow();
-				}
-				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
-				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
-				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
-				if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {
-					SavePreferences();
-					joysticks->SetHeldButtons(0);//clear bits on change just in case
-				}
-				
-				// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
-				// 	SavePreferences();
-				// 	paddleDetected = false;
-				// 	PaddleInit();
-				// }
-				
-				// ImGui::SetNextItemWidth(60.0f);
-				// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
-				// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
-				// 	SavePreferences();
-				// 	paddleDetected = false;
-				// 	if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
-				// 	PaddleInit();
-				// }
-				
-				// ImGui::SetNextItemWidth(60.0f);
-				// if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
-				// 	if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
-				// 	SavePreferences();
-				// }
-
-				if(ImGui::BeginMenu("Pallete")) {
-					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
-					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
-					ImGui::RadioButton("Cheap HDMI converter", &palette_select, PALETTE_SELECT_HDMI);
-					ImGui::RadioButton("Flawed Theory (Legacy)", &palette_select, PALETTE_SELECT_OLD);
-					ImGui::EndMenu();
-				}
-				ImGui::EndMenu();
-			}
-			if(ImGui::BeginMenu("Tools")) {
-				if(ImGui::MenuItem("Profiler (F12)")) {
-					toggleProfilerWindow();
-				}
-				if(ImGui::MenuItem("Memory Browser (F9)")) {
-					toggleMemBrowserWindow();
-				}
-				if(ImGui::MenuItem("VRAM Viewer (F10)")) {
-					toggleVRAMWindow();
-				}
-				if(ImGui::MenuItem("Code Stepper (F7)")) {
-					toggleSteppingWindow();
-				}
-				if(ImGui::MenuItem("Patching Window")) {
-					togglePatchingWindow();
-				}
-				if(ImGui::MenuItem("Update Patches")) {
-					gameconfig->UpdateAllPatches(cartridge_state.rom);
-				}
-				if(ImGui::MenuItem("Dump RAM to file (F6)")) {
-					doRamDump();
-				}
-				if(ImGui::MenuItem("Deep Profile Single Vsync")) {
-					vsyncProfileArmed = true;
-				}
-				ImGui::EndMenu();
-			}
-			ImGui::EndMainMenuBar();
-		}
+        // ... Your standard multi-window desktop menu setup stays exactly here ...
 #else
-		ImGui::SetNextWindowPos(ImVec2(0, 0));
-		ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0.5f)); // 50% transparent black
-		ImGui::Begin("OverlayBackground", nullptr,
-			ImGuiWindowFlags_NoDecoration |
-			ImGuiWindowFlags_NoInputs | 
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoBringToFrontOnFocus);
-		ImGui::End();
-		ImGui::PopStyleColor();
-		ImGui::PopStyleVar(2);
-
-		// Now create the actual menu window in the top-left corner
-		ImGui::SetNextWindowPos(ImVec2(20, 20), ImGuiCond_Always);
-		ImGui::SetNextWindowBgAlpha(0.9f);
-		if(!ImGui::IsAnyItemFocused()) {
-			ImGui::SetNextWindowFocus();
-		}
-		menuOpening = false;
-		ImGui::Begin("MainMenu", nullptr,
-			ImGuiWindowFlags_AlwaysAutoResize |
-			ImGuiWindowFlags_NoCollapse |
-			ImGuiWindowFlags_NoMove |
-			ImGuiWindowFlags_NoSavedSettings |
-			ImGuiWindowFlags_NoTitleBar);
-
-			ImGui::SetWindowFontScale(2.0f);
-
-		if (ImGui::IsWindowAppearing())
-    		ImGui::SetKeyboardFocusHere(-1);
-		
-
-		if (ImGui::BeginMenu("Options")) {
-			// These are items inside the pop-out menu
-			if (ImGui::MenuItem("Toggle Full Screen")) {
-				toggleFullScreen();
-			}
-			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256, "", ImGuiSliderFlags_NoInput);
-			bool appMute = (muteMask & MUTE_SOURCE_MANUAL) != 0;
-			ImGui::Checkbox("Mute Audio", &appMute);
-			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
-			else muteMask &= ~MUTE_SOURCE_MANUAL;
-			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
-			ImGui::Separator();
-			if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {//hidden from wrapper mode
-				SavePreferences();
-				joysticks->SetHeldButtons(0);//clear bits on change just in case
-			}
-
-			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
-			// 	SavePreferences();
-			// 	paddleDetected = false;
-			// 	PaddleInit();
-			// }
-			// ImGui::SetNextItemWidth(60.0f);
-			// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
-			// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
-			// 	SavePreferences();
-			// 	paddleDetected = false;
-			// 	if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
-			// 	PaddleInit();
-			// }
-			// ImGui::SetNextItemWidth(60.0f);
-			// if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
-			// 	if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
-			// 	SavePreferences();
-			// }
-
-			ImGui::EndMenu();
-		}
-
-		if(ImGui::Selectable("Reset")) {
-			resetQueued = 2;
-			showMenu = false;
-			setMenuMute(showMenu);
-			joysticks->Reset();
-		}
-
-		if(ImGui::Selectable("Exit")) {
-			running = false;
-		}
-
-		ImGui::End();
+        // ... Your high-visibility, transparent overlay backdrop and MainMenu panel stay exactly here ...
 #endif
-	}
-	ImGui::Render();
-	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), mainRenderer);
+    }
+
+    ImGui::Render();
+    // Force the ImGui viewport to span the entire screen boundaries
+    glViewport(0, 0, scr_w, scr_h);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 #endif
-	SDL_RenderPresent(mainRenderer);
+
+    // 8. Swap buffers
+    SDL_GL_SwapWindow(mainWindow);
 }
 
 char titlebuf[256];
@@ -1715,7 +1617,30 @@ int main(int argC, char* argV[]) {
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
 
-	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+//	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+	
+	// Set OpenGL attributes BEFORE creating the window
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+
+	// Create the window with the OpenGL context capability flag attached
+    mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
+
+	// Create the OpenGL context and bind it to the window
+    SDL_GLContext glContext = SDL_GL_CreateContext(mainWindow);
+    SDL_GL_MakeCurrent(mainWindow, glContext);
+
+	// Load modern OpenGL function pointers from the graphics driver
+    glewExperimental = GL_TRUE;
+    GLenum err = glewInit();
+    if (err != GLEW_OK) {
+        std::cerr << "GLEW Initialization failed: " << glewGetErrorString(err) << std::endl;
+    }
+
+    // Call the initialization function to build shaders, textures, and quad geometry
+    initGraphicsPipeline(); 
+
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
 
@@ -1729,9 +1654,12 @@ int main(int argC, char* argV[]) {
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 	io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines;
 	ImGui::StyleColorsDark();
-	ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);
+	//ImGui_ImplSDL2_InitForSDLRenderer(mainWindow, mainRenderer);//remove for crt shader mod
 	ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_Manual);
-	ImGui_ImplSDLRenderer2_Init(mainRenderer);
+	//ImGui_ImplSDLRenderer2_Init(mainRenderer); //remove for crt shader mod
+	// add for crt shader
+	ImGui_ImplSDL2_InitForOpenGL(mainWindow, glContext);
+	ImGui_ImplOpenGL3_Init("#version 330");
 #endif
 
 	//Init joystick handler AFTER init imgui

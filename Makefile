@@ -82,8 +82,7 @@ ifeq ($(OS), Windows_NT)
 	endif
 
 	#LINKER_FLAGS specifies the libraries we're linking against
-	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapi
-else ifeq ($(OS), wasm)
+	LINKER_FLAGS = -lmingw32 -lSDL2main -lSDL2 -lglew32 -lopengl32 -Wl,-Bstatic -mwindows -lm -ldinput8 -ldxguid -ldxerr8 -luser32 -lgdi32 -lwinmm -limm32 -lcomdlg32 -lole32 -loleaut32 -lshell32 -lversion -luuid -static-libgcc -lsetupapielse ifeq ($(OS), wasm)
 	CC = emcc
 	CPPC = emcc
 	OUT_DIR = wasmbuild
@@ -111,12 +110,17 @@ endif
 
 # Add macOS SDK headers if on Darwin
 ifeq ($(OS), Darwin)
-	ifneq ($(OS), wasm)
-		ifeq ($(WRAPPERMODE), yes)
-			COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
-		endif
-    	COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
-	endif
+    ifneq ($(OS), wasm)
+        ifeq ($(WRAPPERMODE), yes)
+            COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
+        endif
+        COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
+        
+        # Add these three lines to support Homebrew GLEW installations on Mac:
+        INCLUDE_PATHS += -I/opt/homebrew/include
+        LIBRARY_PATHS += -L/opt/homebrew/lib
+        LINKER_FLAGS += -lGLEW -framework OpenGL
+    endif
 endif
 
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
