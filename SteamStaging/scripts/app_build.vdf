@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.9 tighter vertical crop"
+  "Desc" "v1.0.10 new roms black bg"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
