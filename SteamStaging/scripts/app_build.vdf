@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.8 fix paddle reset gamepad issue on win"
+  "Desc" "v1.0.9 tighter vertical crop"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
