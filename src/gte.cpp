@@ -1052,7 +1052,9 @@ bool checkHotkey(SDL_Keycode  key) {
 void refreshScreen() {
 	SDL_Rect src, dest;
 	int scr_w, scr_h;
+	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
+#ifdef WRAPPER_MODE
 	// number of native overscan rows to strip from the top and bottom
     const int BORDER_TOP = 8; //8
     const int BORDER_BOTTOM = 8; //8
@@ -1062,10 +1064,17 @@ void refreshScreen() {
 	src.w = GT_WIDTH;
 	src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); // Active pixel height
 	
-	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	
 	dest.h = scr_h; //dest.h = dest.w; //maximize height to window height
 	dest.w = (int)(dest.h * ((double)src.w / src.h));//new dynamic width //dest.w = min(scr_w, scr_h);
+#else
+    src.x = 0;
+    src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
+    src.w = GT_WIDTH;
+    src.h = GT_HEIGHT;
+
+    dest.w = min(scr_w, scr_h);
+    dest.h = dest.w;
+#endif
 
 	dest.x = (scr_w - dest.w) / 2; // Center the widened viewport horizontally
     dest.y = 0;
@@ -1075,13 +1084,12 @@ void refreshScreen() {
 	
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
-
 	SDL_RenderClear(mainRenderer);
+
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
 	src.x = GT_WIDTH-1;
 	src.w = 1;
-
 	dest.w = (int)(main_frame_w * 86.0 / 512.0);
 	
 	//left overscan bar
