@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.7 separate mouse and paddle bits"
+  "Desc" "v1.0.8 fix paddle reset gamepad issue on win"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
