@@ -1052,15 +1052,27 @@ bool checkHotkey(SDL_Keycode  key) {
 void refreshScreen() {
 	SDL_Rect src, dest;
 	int scr_w, scr_h;
+
+	// number of native overscan rows to strip from the top and bottom
+    const int BORDER_TOP = 8; //8
+    const int BORDER_BOTTOM = 8; //8
+
 	src.x = 0;
-	src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
+	src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
 	src.w = GT_WIDTH;
-	src.h = GT_HEIGHT;
+	src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); // Active pixel height
+	
 	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
-	dest.w = min(scr_w, scr_h);
-	dest.h = dest.w;
-	dest.x = (scr_w - dest.w) / 2;
-	dest.y = (scr_h - dest.h) / 2;
+	
+	dest.h = scr_h; //dest.h = dest.w; //maximize height to window height
+	dest.w = (int)(dest.h * ((double)src.w / src.h));//new dynamic width //dest.w = min(scr_w, scr_h);
+
+	dest.x = (scr_w - dest.w) / 2; // Center the widened viewport horizontally
+    dest.y = 0;
+
+	// Save the main game framework width to calculate side borders accurately
+    int main_frame_w = dest.w;
+	
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
 	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
 
@@ -1069,14 +1081,16 @@ void refreshScreen() {
 
 	src.x = GT_WIDTH-1;
 	src.w = 1;
-	dest.w = dest.w * 86.0 / 512.0;
+
+	dest.w = (int)(main_frame_w * 86.0 / 512.0);
+	
+	//left overscan bar
 	dest.x -= dest.w;
-
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-	dest.x += dest.w + dest.h;
-
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+	//right overscan bar
+	dest.x += dest.w + main_frame_w;
+    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
 #if !defined(WASM_BUILD)
 	ImGui::SetCurrentContext(main_imgui_ctx);
