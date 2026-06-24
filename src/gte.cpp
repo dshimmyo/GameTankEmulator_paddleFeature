@@ -1055,6 +1055,98 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
+void UpdateNTSCTexture() {
+    static std::vector<uint32_t> ntsc_framebuffer(GT_WIDTH * GT_HEIGHT * 2, 0);
+    std::memcpy(ntsc_framebuffer.data(), vRAM_Surface->pixels, vRAM_Surface->pitch * GT_HEIGHT * 2);
+
+    int current_y_offset = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
+    uint32_t* src_pixels = (uint32_t*)vRAM_Surface->pixels;
+    int pitch_pixels = vRAM_Surface->pitch / 4;
+
+    static float frame_phase_offset = 0.0f;
+    frame_phase_offset = fmod(frame_phase_offset + 4.0f, 12.0f); 
+
+    for (int y = 0; y < GT_HEIGHT; ++y) {
+        int actual_y = current_y_offset + y;
+        float scanline_phase = fmod(frame_phase_offset + (y * 4.0f), 12.0f); 
+
+        const int SAMPLES_PER_PIXEL = 8;
+        const int TOTAL_SAMPLES = GT_WIDTH * SAMPLES_PER_PIXEL;
+        static std::vector<float> composite_signal(TOTAL_SAMPLES);
+
+        // ENCODE
+        for (int x = 0; x < GT_WIDTH; ++x) {
+            uint32_t pixel = src_pixels[actual_y * pitch_pixels + x];
+            
+            uint8_t r_byte = (pixel >> 16) & 0xFF;
+            uint8_t g_byte = (pixel >> 8) & 0xFF;
+            uint8_t b_byte = pixel & 0xFF;
+
+            float r = r_byte / 255.0f;
+            float g = g_byte / 255.0f;
+            float b = b_byte / 255.0f;
+
+            float Y_val = 0.299f * r + 0.587f * g + 0.114f * b;
+            float U_val = (-0.299f * r - 0.587f * g + 0.886f * b) * 0.492111f;
+            float V_val = (0.701f * r - 0.587f * g - 0.114f * b) * 0.877283f;
+
+            for (int p = 0; p < SAMPLES_PER_PIXEL; ++p) {
+                int sample_idx = x * SAMPLES_PER_PIXEL + p;
+                float angle = M_PI * (scanline_phase + sample_idx) / 6.0f; 
+                composite_signal[sample_idx] = Y_val + U_val * sin(angle) + V_val * cos(angle);
+            }
+        }
+
+        // FILTER
+        float v_prev = composite_signal[0];
+        float dt = 1.0f / (236.25e6f / 11.0f * 2.0f); 
+        float amount = 4.0f; 
+        float composite_white = 1.200f;
+
+        for (int i = 0; i < TOTAL_SAMPLES; ++i) {
+            float voltage_ratio = composite_signal[i] / composite_white;
+            float alpha = dt / (voltage_ratio * amount * 1e-8f + dt);
+            v_prev = alpha * composite_signal[i] + (1.0f - alpha) * v_prev;
+            composite_signal[i] = v_prev;
+        }
+
+        // DECODE
+        for (int x = 0; x < GT_WIDTH; ++x) {
+            int center = x * SAMPLES_PER_PIXEL;
+            int begin = center - 6;
+            if (begin < 0) begin = 0;
+            int end = center + 6;
+            if (end > TOTAL_SAMPLES) end = TOTAL_SAMPLES;
+
+            float out_y = 0.0f, out_u = 0.0f, out_v = 0.0f;
+            float sample_scale = 1.0f / (end - begin);
+
+            for (int p = begin; p < end; ++p) {
+                float level = composite_signal[p] * sample_scale;
+                out_y += level;
+                out_u += level * sin(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
+                out_v += level * cos(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
+            }
+
+            out_u *= 1.3f;
+            out_v *= 1.3f;
+
+            float r_out = out_y + 1.139883f * out_v;
+            float g_out = out_y - 0.394642f * out_u - 0.580622f * out_v;
+            float b_out = out_y + 2.032062f * out_u;
+
+            int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
+            int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
+            int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
+
+            uint32_t final_pixel = (0xFF000000) | (R_int << 16) | (G_int << 8) | B_int;
+            ntsc_framebuffer[actual_y * pitch_pixels + x] = final_pixel;
+        }
+    }
+
+    SDL_UpdateTexture(framebufferTexture, NULL, ntsc_framebuffer.data(), vRAM_Surface->pitch);
+}
+
 void refreshScreen() {
 	SDL_Rect src, dest;
 	int scr_w, scr_h;
@@ -1089,7 +1181,9 @@ void refreshScreen() {
     int main_frame_w = dest.w;
 	
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+	//SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+	//******** CRT madness
+	UpdateNTSCTexture();
 	SDL_RenderClear(mainRenderer);
 
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
