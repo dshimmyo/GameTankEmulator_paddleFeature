@@ -1055,8 +1055,9 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
+#define CRTRESSCALE 4
 void UpdateNTSCTexture() {
-    const int SCALE_X = 2; // Upscale factor (2x horizontal resolution)
+    const int SCALE_X = CRTRESSCALE; // Upscale factor (2x horizontal resolution)
     const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
     const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
 
@@ -1174,7 +1175,7 @@ void refreshScreen() {
 
     src.x = 0;
     src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
-    src.w = GT_WIDTH * 2; // Target the 256 pixel width space inside the texture
+    src.w = GT_WIDTH * CRTRESSCALE; // Target the 256 pixel width space inside the texture
     src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); 
     
     dest.h = scr_h; 
@@ -1183,7 +1184,7 @@ void refreshScreen() {
 #else
     src.x = 0;
     src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-    src.w = GT_WIDTH * 2; // Target the 256 pixel width space inside the texture
+    src.w = GT_WIDTH * CRTRESSCALE; // Target the 256 pixel width space inside the texture
     src.h = GT_HEIGHT;
 
     dest.w = min(scr_w, scr_h);
@@ -1202,7 +1203,7 @@ void refreshScreen() {
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
     // Fix: Read from the edge of the new upscaled bounds (255 instead of 127)
-    src.x = (GT_WIDTH * 2) - 1;
+    src.x = (GT_WIDTH * CRTRESSCALE) - 1;
     src.w = 1;
     dest.w = (int)(main_frame_w * 86.0 / 512.0);
     
