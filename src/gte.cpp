@@ -1056,9 +1056,22 @@ bool checkHotkey(SDL_Keycode  key) {
 #endif
 
 void UpdateNTSCTexture() {
-    static std::vector<uint32_t> ntsc_framebuffer(GT_WIDTH * GT_HEIGHT * 2, 0);
-    std::memcpy(ntsc_framebuffer.data(), vRAM_Surface->pixels, vRAM_Surface->pitch * GT_HEIGHT * 2);
+    const int SCALE_X = 2; // Upscale factor (2x horizontal resolution)
+    const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
+    const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
 
+    // Dynamically check and adjust global texture size if it doesn't match our upscale factor
+    int tex_w = 0, tex_h = 0;
+    if (framebufferTexture) {
+        SDL_QueryTexture(framebufferTexture, NULL, NULL, &tex_w, &tex_h);
+    }
+    if (tex_w != NTSC_WIDTH) {
+        if (framebufferTexture) SDL_DestroyTexture(framebufferTexture);
+        framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
+                                              SDL_TEXTUREACCESS_STREAMING, NTSC_WIDTH, NTSC_HEIGHT_TOTAL);
+    }
+
+    static std::vector<uint32_t> ntsc_framebuffer(NTSC_WIDTH * NTSC_HEIGHT_TOTAL, 0);
     int current_y_offset = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
     uint32_t* src_pixels = (uint32_t*)vRAM_Surface->pixels;
     int pitch_pixels = vRAM_Surface->pitch / 4;
@@ -1070,21 +1083,23 @@ void UpdateNTSCTexture() {
         int actual_y = current_y_offset + y;
         float scanline_phase = fmod(frame_phase_offset + (y * 4.0f), 12.0f); 
 
-        const int SAMPLES_PER_PIXEL = 8;
-        const int TOTAL_SAMPLES = GT_WIDTH * SAMPLES_PER_PIXEL;
+        const int SAMPLES_PER_PIXEL = 4; // 256 * 4 keeps the internal subcarrier frequency consistent
+        const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
         static std::vector<float> composite_signal(TOTAL_SAMPLES);
 
-        // ENCODE
-        for (int x = 0; x < GT_WIDTH; ++x) {
-            uint32_t pixel = src_pixels[actual_y * pitch_pixels + x];
-            
-            uint8_t r_byte = (pixel >> 16) & 0xFF;
-            uint8_t g_byte = (pixel >> 8) & 0xFF;
-            uint8_t b_byte = pixel & 0xFF;
+        // --- ENCODE WITH LINEAR INTERPOLATION ---
+        for (int x = 0; x < NTSC_WIDTH; ++x) {
+            float src_x = x / (float)SCALE_X;
+            int x0 = (int)floor(src_x);
+            int x1 = std::min(x0 + 1, GT_WIDTH - 1);
+            float t = src_x - x0;
 
-            float r = r_byte / 255.0f;
-            float g = g_byte / 255.0f;
-            float b = b_byte / 255.0f;
+            uint32_t p0 = src_pixels[actual_y * pitch_pixels + x0];
+            uint32_t p1 = src_pixels[actual_y * pitch_pixels + x1];
+
+            float r = (((p0 >> 16) & 0xFF) * (1.0f - t) + ((p1 >> 16) & 0xFF) * t) / 255.0f;
+            float g = (((p0 >> 8) & 0xFF) * (1.0f - t) + ((p1 >> 8) & 0xFF) * t) / 255.0f;
+            float b = ((p0 & 0xFF) * (1.0f - t) + (p1 & 0xFF) * t) / 255.0f;
 
             float Y_val = 0.299f * r + 0.587f * g + 0.114f * b;
             float U_val = (-0.299f * r - 0.587f * g + 0.886f * b) * 0.492111f;
@@ -1097,10 +1112,10 @@ void UpdateNTSCTexture() {
             }
         }
 
-        // FILTER
+        // --- FILTER ---
         float v_prev = composite_signal[0];
         float dt = 1.0f / (236.25e6f / 11.0f * 2.0f); 
-        float amount = 4.0f; 
+        float amount = 3.5f; 
         float composite_white = 1.200f;
 
         for (int i = 0; i < TOTAL_SAMPLES; ++i) {
@@ -1110,8 +1125,8 @@ void UpdateNTSCTexture() {
             composite_signal[i] = v_prev;
         }
 
-        // DECODE
-        for (int x = 0; x < GT_WIDTH; ++x) {
+        // --- DECODE ---
+        for (int x = 0; x < NTSC_WIDTH; ++x) {
             int center = x * SAMPLES_PER_PIXEL;
             int begin = center - 6;
             if (begin < 0) begin = 0;
@@ -1128,8 +1143,8 @@ void UpdateNTSCTexture() {
                 out_v += level * cos(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
             }
 
-            out_u *= 1.3f;
-            out_v *= 1.3f;
+            out_u *= 1.4f; 
+            out_v *= 1.4f;
 
             float r_out = out_y + 1.139883f * out_v;
             float g_out = out_y - 0.394642f * out_u - 0.580622f * out_v;
@@ -1140,64 +1155,63 @@ void UpdateNTSCTexture() {
             int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
 
             uint32_t final_pixel = (0xFF000000) | (R_int << 16) | (G_int << 8) | B_int;
-            ntsc_framebuffer[actual_y * pitch_pixels + x] = final_pixel;
+            ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
         }
     }
 
-    SDL_UpdateTexture(framebufferTexture, NULL, ntsc_framebuffer.data(), vRAM_Surface->pitch);
+    SDL_UpdateTexture(framebufferTexture, NULL, ntsc_framebuffer.data(), NTSC_WIDTH * 4);
 }
 
 void refreshScreen() {
-	SDL_Rect src, dest;
-	int scr_w, scr_h;
-	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
+    SDL_Rect src, dest;
+    int scr_w, scr_h;
+    SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
 #ifdef WRAPPER_MODE
-	// number of native overscan rows to strip from the top and bottom
-    const int BORDER_TOP = 8; //8
-    const int BORDER_BOTTOM = 8; //8
+    // number of native overscan rows to strip from the top and bottom
+    const int BORDER_TOP = 8; 
+    const int BORDER_BOTTOM = 8; 
 
-	src.x = 0;
-	src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
-	src.w = GT_WIDTH;
-	src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); // Active pixel height
-	
-	dest.h = scr_h; //dest.h = dest.w; //maximize height to window height
-	dest.w = (int)(dest.h * ((double)src.w / src.h));//new dynamic width //dest.w = min(scr_w, scr_h);
+    src.x = 0;
+    src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
+    src.w = GT_WIDTH * 2; // Target the 256 pixel width space inside the texture
+    src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); 
+    
+    dest.h = scr_h; 
+    // Fix: Calculate aspect ratio using structural GT_WIDTH (128) instead of src.w (256)
+    dest.w = (int)(dest.h * ((double)GT_WIDTH / src.h));
 #else
     src.x = 0;
     src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-    src.w = GT_WIDTH;
+    src.w = GT_WIDTH * 2; // Target the 256 pixel width space inside the texture
     src.h = GT_HEIGHT;
 
     dest.w = min(scr_w, scr_h);
     dest.h = dest.w;
 #endif
 
-	dest.x = (scr_w - dest.w) / 2; // Center the widened viewport horizontally
+    dest.x = (scr_w - dest.w) / 2; 
     dest.y = 0;
 
-	// Save the main game framework width to calculate side borders accurately
     int main_frame_w = dest.w;
-	
-	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	//SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
-	//******** CRT madness
-	UpdateNTSCTexture();
-	SDL_RenderClear(mainRenderer);
+    
+    UpdateNTSCTexture();
+    
+    SDL_RenderClear(mainRenderer);
 
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-	src.x = GT_WIDTH-1;
-	src.w = 1;
-	dest.w = (int)(main_frame_w * 86.0 / 512.0);
-	
-	//left overscan bar
-	dest.x -= dest.w;
-	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    // Fix: Read from the edge of the new upscaled bounds (255 instead of 127)
+    src.x = (GT_WIDTH * 2) - 1;
+    src.w = 1;
+    dest.w = (int)(main_frame_w * 86.0 / 512.0);
+    
+    // left overscan bar
+    dest.x -= dest.w;
+    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-	//right overscan bar
-	dest.x += dest.w + main_frame_w;
+    // right overscan bar
+    dest.x += dest.w + main_frame_w;
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
 #if !defined(WASM_BUILD)
