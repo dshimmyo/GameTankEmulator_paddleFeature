@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.10 new roms black bg"
+  "Desc" "v1.0.11 new roms paddle fix, faster attract"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
