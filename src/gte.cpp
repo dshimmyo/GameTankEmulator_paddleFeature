@@ -1055,9 +1055,10 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
-#define CRTRESSCALE 4
+#define NTSC_RES_SCALE 3
+#define USE_PHOSPHOR_BLENDING true
 void UpdateNTSCTexture() {
-    const int SCALE_X = CRTRESSCALE; // Upscale factor (2x horizontal resolution)
+    const int SCALE_X = NTSC_RES_SCALE; // Upscale factor (2x horizontal resolution)
     const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
     const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
 
@@ -1155,8 +1156,32 @@ void UpdateNTSCTexture() {
             int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
             int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
 
+			#if !USE_PHOSPHOR_BLENDING
             uint32_t final_pixel = (0xFF000000) | (R_int << 16) | (G_int << 8) | B_int;
-            ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
+			#else
+			// //simulate phosphor blending to reduce temporal shimmering
+			uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
+
+			int old_r = (old_pixel >> 16) & 0xFF;
+			int old_g = (old_pixel >> 8) & 0xFF;
+			int old_b = old_pixel & 0xFF;
+
+			// // Blend 50% old frame and 50% new frame
+			// int blended_r = (old_r + R_int) >> 1;
+			// int blended_g = (old_g + G_int) >> 1;
+			// int blended_b = (old_b + B_int) >> 1;
+			// (New * 2 + Old) / 4
+			// int blended_r = ((R_int * 3) + old_r) >> 2;
+			// int blended_g = ((G_int * 3) + old_g) >> 2;
+			// int blended_b = ((B_int * 3) + old_b) >> 2;
+			int blended_r = ((R_int * 2) + old_r) / 3;
+			int blended_g = ((G_int * 2) + old_g) / 3;
+			int blended_b = ((B_int * 2) + old_b) / 3;
+
+
+			uint32_t final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
+			#endif
+			ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
         }
     }
 
@@ -1175,7 +1200,7 @@ void refreshScreen() {
 
     src.x = 0;
     src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
-    src.w = GT_WIDTH * CRTRESSCALE; // Target the 256 pixel width space inside the texture
+    src.w = GT_WIDTH * NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
     src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); 
     
     dest.h = scr_h; 
@@ -1184,7 +1209,7 @@ void refreshScreen() {
 #else
     src.x = 0;
     src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-    src.w = GT_WIDTH * CRTRESSCALE; // Target the 256 pixel width space inside the texture
+    src.w = GT_WIDTH * NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
     src.h = GT_HEIGHT;
 
     dest.w = min(scr_w, scr_h);
@@ -1202,18 +1227,32 @@ void refreshScreen() {
 
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-    // Fix: Read from the edge of the new upscaled bounds (255 instead of 127)
-    src.x = (GT_WIDTH * CRTRESSCALE) - 1;
-    src.w = 1;
+    // // Fix: Read from the edge of the new upscaled bounds (255 instead of 127)
+    // src.x = (GT_WIDTH * NTSC_RES_SCALE) - 1;
+    // src.w = 1;
+    // dest.w = (int)(main_frame_w * 86.0 / 512.0);
+    
+    // // left overscan bar
+    // dest.x -= dest.w;
+    // SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+    // // right overscan bar
+    // dest.x += dest.w + main_frame_w;
+    // SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+
+	// Set draw color to opaque black for the side bars
+    SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
+
+    // Calculate width of the overscan bar area
     dest.w = (int)(main_frame_w * 86.0 / 512.0);
     
-    // left overscan bar
+    // Left overscan bar
     dest.x -= dest.w;
-    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    SDL_RenderFillRect(mainRenderer, &dest);
 
-    // right overscan bar
+    // Right overscan bar
     dest.x += dest.w + main_frame_w;
-    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+    SDL_RenderFillRect(mainRenderer, &dest);
 
 #if !defined(WASM_BUILD)
 	ImGui::SetCurrentContext(main_imgui_ctx);
