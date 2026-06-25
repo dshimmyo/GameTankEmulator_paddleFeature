@@ -5,6 +5,7 @@
 #include <cmath>
 #include <time.h>
 #include <fstream>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <vector>
@@ -89,6 +90,8 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
+bool ntsc_filter_enabled = false;
+bool phosphor_blending_enabled = false;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
 bool dksPaddleDetected = false;
@@ -203,21 +206,45 @@ const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
 void SavePreferences() {
     std::ofstream file("emulator_prefs.cfg");
     if (file.is_open()) {
-		file << paddle_emulation_enabled << "\n";//sticky mouse paddle
-        //file << use_any_joystick_as_paddle << "\n";//no longer an option, is always on
+        file << "paddle_emulation_enabled=" << (paddle_emulation_enabled ? "1" : "0") << "\n";
+        file << "ntsc_filter_enabled=" << (ntsc_filter_enabled ? "1" : "0") << "\n";
+        file << "phosphor_blending_enabled=" << (phosphor_blending_enabled ? "1" : "0") << "\n";
         file.close();
     }
 }
 
 void LoadPreferences() {
+    // 1. Establish hardcoded default states (off by default)
+    paddle_emulation_enabled = false;
+    ntsc_filter_enabled = false;
+    phosphor_blending_enabled = false;
+
     std::ifstream file("emulator_prefs.cfg");
     if (file.is_open()) {
-		file >> paddle_emulation_enabled;
-        //file >> use_any_joystick_as_paddle;//deprecated
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip empty lines or lines meant as comments
+            if (line.empty() || line[0] == '#') continue;
+
+            size_t delim_pos = line.find('=');
+            if (delim_pos != std::string::npos) {
+                std::string key = line.substr(0, delim_pos);
+                std::string val_str = line.substr(delim_pos + 1);
+                
+                // Convert value string to integer (0 or 1)
+                int val = std::atoi(val_str.c_str());
+
+                // 2. Map explicit keys to matching global states
+                if (key == "paddle_emulation_enabled") {
+                    paddle_emulation_enabled = (val != 0);
+                } else if (key == "ntsc_filter_enabled") {
+                    ntsc_filter_enabled = (val != 0);
+                } else if (key == "phosphor_blending_enabled") {
+                    phosphor_blending_enabled = (val != 0);
+                }
+            }
+        }
         file.close();
-    } else {
-		paddle_emulation_enabled = false;
-        //use_any_joystick_as_paddle = true; // Default behavior changed to true but also commented out
     }
 }
 
@@ -1056,22 +1083,10 @@ bool checkHotkey(SDL_Keycode  key) {
 #endif
 
 #define NTSC_RES_SCALE 3
-#define USE_PHOSPHOR_BLENDING true
 void UpdateNTSCTexture() {
     const int SCALE_X = NTSC_RES_SCALE; // Upscale factor (2x horizontal resolution)
     const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
     const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
-
-    // Dynamically check and adjust global texture size if it doesn't match our upscale factor
-    int tex_w = 0, tex_h = 0;
-    if (framebufferTexture) {
-        SDL_QueryTexture(framebufferTexture, NULL, NULL, &tex_w, &tex_h);
-    }
-    if (tex_w != NTSC_WIDTH) {
-        if (framebufferTexture) SDL_DestroyTexture(framebufferTexture);
-        framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
-                                              SDL_TEXTUREACCESS_STREAMING, NTSC_WIDTH, NTSC_HEIGHT_TOTAL);
-    }
 
     static std::vector<uint32_t> ntsc_framebuffer(NTSC_WIDTH * NTSC_HEIGHT_TOTAL, 0);
     int current_y_offset = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
@@ -1155,32 +1170,34 @@ void UpdateNTSCTexture() {
             int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
             int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
             int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
+			uint32_t final_pixel;
+			if (!phosphor_blending_enabled)
+			{
+            	final_pixel = (0xFF000000) | (R_int << 16) | (G_int << 8) | B_int;
+			}
+			else
+			{
+				// //simulate phosphor blending to reduce temporal shimmering
+				uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
 
-			#if !USE_PHOSPHOR_BLENDING
-            uint32_t final_pixel = (0xFF000000) | (R_int << 16) | (G_int << 8) | B_int;
-			#else
-			// //simulate phosphor blending to reduce temporal shimmering
-			uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
+				int old_r = (old_pixel >> 16) & 0xFF;
+				int old_g = (old_pixel >> 8) & 0xFF;
+				int old_b = old_pixel & 0xFF;
 
-			int old_r = (old_pixel >> 16) & 0xFF;
-			int old_g = (old_pixel >> 8) & 0xFF;
-			int old_b = old_pixel & 0xFF;
+				// // Blend 50% old frame and 50% new frame
+				// int blended_r = (old_r + R_int) >> 1;
+				// int blended_g = (old_g + G_int) >> 1;
+				// int blended_b = (old_b + B_int) >> 1;
+				// (New * 3 + Old) / 4
+				// int blended_r = ((R_int * 3) + old_r) >> 2;
+				// int blended_g = ((G_int * 3) + old_g) >> 2;
+				// int blended_b = ((B_int * 3) + old_b) >> 2;
+				int blended_r = ((R_int * 2) + old_r) / 3;
+				int blended_g = ((G_int * 2) + old_g) / 3;
+				int blended_b = ((B_int * 2) + old_b) / 3;
 
-			// // Blend 50% old frame and 50% new frame
-			// int blended_r = (old_r + R_int) >> 1;
-			// int blended_g = (old_g + G_int) >> 1;
-			// int blended_b = (old_b + B_int) >> 1;
-			// (New * 2 + Old) / 4
-			// int blended_r = ((R_int * 3) + old_r) >> 2;
-			// int blended_g = ((G_int * 3) + old_g) >> 2;
-			// int blended_b = ((B_int * 3) + old_b) >> 2;
-			int blended_r = ((R_int * 2) + old_r) / 3;
-			int blended_g = ((G_int * 2) + old_g) / 3;
-			int blended_b = ((B_int * 2) + old_b) / 3;
-
-
-			uint32_t final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
-			#endif
+				final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
+			}
 			ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
         }
     }
@@ -1193,6 +1210,21 @@ void refreshScreen() {
     int scr_w, scr_h;
     SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
+	// 1. Determine target dimensions based on the NTSC toggle state
+    int target_tex_w = ntsc_filter_enabled ? (GT_WIDTH * NTSC_RES_SCALE) : GT_WIDTH;
+    int target_tex_h = GT_HEIGHT * 2;
+
+    // 2. Validate and adjust the texture allocation size dynamically
+    int current_tex_w = 0, current_tex_h = 0;
+    if (framebufferTexture) {
+        SDL_QueryTexture(framebufferTexture, NULL, NULL, &current_tex_w, &current_tex_h);
+    }
+    if (current_tex_w != target_tex_w) {
+        if (framebufferTexture) SDL_DestroyTexture(framebufferTexture);
+        framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
+                                              SDL_TEXTUREACCESS_STREAMING, target_tex_w, target_tex_h);
+    }
+
 #ifdef WRAPPER_MODE
     // number of native overscan rows to strip from the top and bottom
     const int BORDER_TOP = 8; 
@@ -1200,7 +1232,10 @@ void refreshScreen() {
 
     src.x = 0;
     src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
-    src.w = GT_WIDTH * NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
+    src.w = GT_WIDTH; // Target the 256 pixel width space inside the texture
+	if (ntsc_filter_enabled){
+		src.w *= NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
+	}
     src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); 
     
     dest.h = scr_h; 
@@ -1209,7 +1244,10 @@ void refreshScreen() {
 #else
     src.x = 0;
     src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-    src.w = GT_WIDTH * NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
+    src.w = GT_WIDTH; // Target the 256 pixel width space inside the texture
+	if (ntsc_filter_enabled){
+		src.w *= NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
+	}
     src.h = GT_HEIGHT;
 
     dest.w = min(scr_w, scr_h);
@@ -1221,8 +1259,12 @@ void refreshScreen() {
 
     int main_frame_w = dest.w;
     
-    UpdateNTSCTexture();
-    
+	if (ntsc_filter_enabled){
+    	UpdateNTSCTexture();
+	} else {
+		SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+	}
+
     SDL_RenderClear(mainRenderer);
 
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
@@ -1286,7 +1328,12 @@ void refreshScreen() {
 					SavePreferences();
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
-				
+				if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
+					SavePreferences();
+				}
+				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+					SavePreferences();
+				}
 				// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
 				// 	SavePreferences();
 				// 	paddleDetected = false;
@@ -1396,6 +1443,12 @@ void refreshScreen() {
 			if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {//hidden from wrapper mode
 				SavePreferences();
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
+			}
+			if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
+				SavePreferences();
+			}
+			if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+				SavePreferences();
 			}
 
 			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
