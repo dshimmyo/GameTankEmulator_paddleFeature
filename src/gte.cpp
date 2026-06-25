@@ -1230,6 +1230,14 @@ void refreshScreen() {
     }
     if (current_tex_w != target_tex_w) {
         if (framebufferTexture) SDL_DestroyTexture(framebufferTexture);
+        
+        // // Set anti-aliasing hint for NTSC, or crisp pixel hint for raw mode
+        // if (ntsc_filter_enabled) {
+        //     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear"); // Bilinear anti-aliasing
+        // } else {
+        //     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Sharp pixel art
+        // }
+
         framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
                                               SDL_TEXTUREACCESS_STREAMING, target_tex_w, target_tex_h);
     }
