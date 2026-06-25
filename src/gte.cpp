@@ -91,6 +91,7 @@ int resetQueued = 0;
 int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 bool ntsc_filter_enabled = false;
+int ntsc_res_scale = 3;
 bool phosphor_blending_enabled = false;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
@@ -209,6 +210,7 @@ void SavePreferences() {
         file << "paddle_emulation_enabled=" << (paddle_emulation_enabled ? "1" : "0") << "\n";
         file << "ntsc_filter_enabled=" << (ntsc_filter_enabled ? "1" : "0") << "\n";
         file << "phosphor_blending_enabled=" << (phosphor_blending_enabled ? "1" : "0") << "\n";
+        file << "ntsc_res_scale=" << (ntsc_res_scale) << "\n";
         file.close();
     }
 }
@@ -241,6 +243,8 @@ void LoadPreferences() {
                     ntsc_filter_enabled = (val != 0);
                 } else if (key == "phosphor_blending_enabled") {
                     phosphor_blending_enabled = (val != 0);
+                } else if (key == "ntsc_res_scale") {
+                    ntsc_res_scale = val;
                 }
             }
         }
@@ -1082,19 +1086,24 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
-#define NTSC_RES_SCALE 3
+
 void UpdateNTSCTexture() {
-    const int SCALE_X = NTSC_RES_SCALE; // Upscale factor (2x horizontal resolution)
+    const int SCALE_X = ntsc_res_scale; // Upscale factor (2x horizontal resolution)
     const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
     const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
 
-    static std::vector<uint32_t> ntsc_framebuffer(NTSC_WIDTH * NTSC_HEIGHT_TOTAL, 0);
+    static std::vector<uint32_t> ntsc_framebuffer;
+    if (ntsc_framebuffer.size() != (size_t)(NTSC_WIDTH * NTSC_HEIGHT_TOTAL)) {
+        ntsc_framebuffer.resize(NTSC_WIDTH * NTSC_HEIGHT_TOTAL, 0);
+    }
     int current_y_offset = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
     uint32_t* src_pixels = (uint32_t*)vRAM_Surface->pixels;
     int pitch_pixels = vRAM_Surface->pitch / 4;
 
     static float frame_phase_offset = 0.0f;
     frame_phase_offset = fmod(frame_phase_offset + 4.0f, 12.0f); 
+	
+	std::vector<float> composite_signal(NTSC_WIDTH * 4); // 4 samples per pixel max
 
     for (int y = 0; y < GT_HEIGHT; ++y) {
         int actual_y = current_y_offset + y;
@@ -1102,7 +1111,7 @@ void UpdateNTSCTexture() {
 
         const int SAMPLES_PER_PIXEL = 4; // 256 * 4 keeps the internal subcarrier frequency consistent
         const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
-        static std::vector<float> composite_signal(TOTAL_SAMPLES);
+        //static std::vector<float> composite_signal(TOTAL_SAMPLES);
 
         // --- ENCODE WITH LINEAR INTERPOLATION ---
         for (int x = 0; x < NTSC_WIDTH; ++x) {
@@ -1211,7 +1220,7 @@ void refreshScreen() {
     SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
 	// 1. Determine target dimensions based on the NTSC toggle state
-    int target_tex_w = ntsc_filter_enabled ? (GT_WIDTH * NTSC_RES_SCALE) : GT_WIDTH;
+    int target_tex_w = ntsc_filter_enabled ? (GT_WIDTH * ntsc_res_scale) : GT_WIDTH;
     int target_tex_h = GT_HEIGHT * 2;
 
     // 2. Validate and adjust the texture allocation size dynamically
@@ -1234,7 +1243,7 @@ void refreshScreen() {
     src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
     src.w = GT_WIDTH; // Target the 256 pixel width space inside the texture
 	if (ntsc_filter_enabled){
-		src.w *= NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
+		src.w *= ntsc_res_scale; // Target the 256 pixel width space inside the texture
 	}
     src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); 
     
@@ -1246,7 +1255,7 @@ void refreshScreen() {
     src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
     src.w = GT_WIDTH; // Target the 256 pixel width space inside the texture
 	if (ntsc_filter_enabled){
-		src.w *= NTSC_RES_SCALE; // Target the 256 pixel width space inside the texture
+		src.w *= ntsc_res_scale; // Target the 256 pixel width space inside the texture
 	}
     src.h = GT_HEIGHT;
 
@@ -1270,7 +1279,7 @@ void refreshScreen() {
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
     // // Fix: Read from the edge of the new upscaled bounds (255 instead of 127)
-    // src.x = (GT_WIDTH * NTSC_RES_SCALE) - 1;
+    // src.x = (GT_WIDTH * ntsc_res_scale) - 1;
     // src.w = 1;
     // dest.w = (int)(main_frame_w * 86.0 / 512.0);
     
@@ -1329,6 +1338,10 @@ void refreshScreen() {
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
 				if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
+					SavePreferences();
+				}
+				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
+					ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
 					SavePreferences();
 				}
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
@@ -1445,6 +1458,10 @@ void refreshScreen() {
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
 			if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
+				SavePreferences();
+			}
+			if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
+				ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
 				SavePreferences();
 			}
 			if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
