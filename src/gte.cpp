@@ -91,6 +91,7 @@ int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
+bool dksPaddleDetected = false;
 bool use_any_joystick_as_paddle = true;//this needs to be on at all times, hard-coded
 int paddle_device_index = 0; //use only if use_any_joystick_as_paddle is enabled
 int paddle_axis_index = 0; //use only if use_any_joystick_as_paddle is enabled
@@ -119,6 +120,7 @@ void PaddleInit() {
 
     // Clear old state tracking variables
     paddleDetected = false; 
+	dksPaddleDetected = false;
     dksPaddle_instanceID = -1;
     
     SDL_Joystick* chosen_joystick = NULL;
@@ -140,6 +142,7 @@ void PaddleInit() {
 
         // If we hit a branded paddle, it takes absolute priority
         if (name != NULL && strstr(name, "Paddle") != NULL) {
+			dksPaddleDetected = true;
             // Close the previous fallback handle if we had one open
             if (chosen_joystick != NULL && chosen_joystick != j) {
                 SDL_JoystickClose(chosen_joystick);
@@ -457,6 +460,9 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
         } 
 		if (paddle_emulation_enabled){
 			status |= 0x08; //
+		}
+		if (dksPaddleDetected) {
+			status |= 0x20; //32 specifically my paddle, used for unlocking demo
 		}
         return status;
 	} else if(address & 0x8000) {
