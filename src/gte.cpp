@@ -1182,7 +1182,9 @@ void UpdateNTSCTexture() {
 
 			// --- SURGICAL LAYER BLEND ---
             // 1. Extract the raw sharp pixel from the un-simulated source frame buffer
-            uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + x];
+            int sharp_x = x / SCALE_X;
+            uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + sharp_x];
+            
             int sharp_r = (sharp_pixel >> 16) & 0xFF;
             int sharp_g = (sharp_pixel >> 8) & 0xFF;
             int sharp_b = sharp_pixel & 0xFF;
