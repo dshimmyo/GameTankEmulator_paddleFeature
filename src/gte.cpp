@@ -1113,7 +1113,7 @@ void UpdateNTSCTexture() {
         const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
         //static std::vector<float> composite_signal(TOTAL_SAMPLES);
 
-        // --- ENCODE WITH LINEAR INTERPOLATION ---
+        // ENCODE WITH LINEAR INTERPOLATION
         for (int x = 0; x < NTSC_WIDTH; ++x) {
             float src_x = x / (float)SCALE_X;
             int x0 = (int)floor(src_x);
@@ -1138,7 +1138,7 @@ void UpdateNTSCTexture() {
             }
         }
 
-        // --- FILTER ---
+        // FILTER 
         float v_prev = composite_signal[0];
         float dt = 1.0f / (236.25e6f / 11.0f * 2.0f); 
         float amount = 3.5f; 
@@ -1151,7 +1151,7 @@ void UpdateNTSCTexture() {
             composite_signal[i] = v_prev;
         }
 
-        // --- DECODE ---
+        // DECODE
         for (int x = 0; x < NTSC_WIDTH; ++x) {
             int center = x * SAMPLES_PER_PIXEL;
             int begin = center - 6;
@@ -1172,28 +1172,37 @@ void UpdateNTSCTexture() {
             out_u *= 1.4f; 
             out_v *= 1.4f;
 
-            float r_out = out_y + 1.139883f * out_v;
-            float g_out = out_y - 0.394642f * out_u - 0.580622f * out_v;
-            float b_out = out_y + 2.032062f * out_u;
+            // float r_out = out_y + 1.139883f * out_v;
+            // float g_out = out_y - 0.394642f * out_u - 0.580622f * out_v;
+            // float b_out = out_y + 2.032062f * out_u;
 
-            int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
-            int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
-            int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
+            // int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
+            // int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
+            // int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
 
 			// --- SURGICAL LAYER BLEND ---
-            // 1. Extract the raw sharp pixel from the un-simulated source frame buffer
+            // Extract the raw sharp pixel first
             int sharp_x = x / SCALE_X;
             uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + sharp_x];
-            
             int sharp_r = (sharp_pixel >> 16) & 0xFF;
             int sharp_g = (sharp_pixel >> 8) & 0xFF;
             int sharp_b = sharp_pixel & 0xFF;
 
-            // 2. Mix them (60% Sharp Original Layer, 40% NTSC Artifact Layer)
-            int base_mix_r = ((sharp_r * 3) + (R_int * 2)) / 5;
-            int base_mix_g = ((sharp_g * 3) + (G_int * 2)) / 5;
-            int base_mix_b = ((sharp_b * 3) + (B_int * 2)) / 5;
+			// Isolate the pure chroma vectors (omitting out_y)
+            float r_chroma = 1.139883f * out_v;
+            float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
+            float b_chroma = 2.032062f * out_u;
 
+            // Inject the isolated color fringe straight onto the sharp baseline
+            int base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
+            int base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
+            int base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
+
+            // Clamp to safeguard against integer wrapping
+            base_mix_r = std::max(0, std::min(255, base_mix_r));
+            base_mix_g = std::max(0, std::min(255, base_mix_g));
+            base_mix_b = std::max(0, std::min(255, base_mix_b));
+			
             uint32_t final_pixel;
             if (!phosphor_blending_enabled)
             {
@@ -1208,9 +1217,9 @@ void UpdateNTSCTexture() {
                 int old_g = (old_pixel >> 8) & 0xFF;
                 int old_b = old_pixel & 0xFF;
 
-                int blended_r = ((base_mix_r * 2) + old_r) / 3;
-                int blended_g = ((base_mix_g * 2) + old_g) / 3;
-                int blended_b = ((base_mix_b * 2) + old_b) / 3;
+                int blended_r = ((base_mix_r * 3) + old_r) >> 2;
+                int blended_g = ((base_mix_g * 3) + old_g) >> 2;
+                int blended_b = ((base_mix_b * 3) + old_b) >> 2;
 
                 final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
             }
@@ -1229,11 +1238,11 @@ void refreshScreen() {
     int scr_w, scr_h;
     SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
-	// 1. Determine target dimensions based on the NTSC toggle state
+	// Determine target dimensions based on the NTSC toggle state
     int target_tex_w = ntsc_filter_enabled ? (GT_WIDTH * ntsc_res_scale) : GT_WIDTH;
     int target_tex_h = GT_HEIGHT * 2;
 
-    // 2. Validate and adjust the texture allocation size dynamically
+    // Validate and adjust the texture allocation size dynamically
     int current_tex_w = 0, current_tex_h = 0;
     if (framebufferTexture) {
         SDL_QueryTexture(framebufferTexture, NULL, NULL, &current_tex_w, &current_tex_h);
@@ -1241,13 +1250,6 @@ void refreshScreen() {
     if (current_tex_w != target_tex_w) {
         if (framebufferTexture) SDL_DestroyTexture(framebufferTexture);
         
-        // // Set anti-aliasing hint for NTSC, or crisp pixel hint for raw mode
-        // if (ntsc_filter_enabled) {
-        //     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear"); // Bilinear anti-aliasing
-        // } else {
-        //     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest"); // Sharp pixel art
-        // }
-
         framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
                                               SDL_TEXTUREACCESS_STREAMING, target_tex_w, target_tex_h);
     }
