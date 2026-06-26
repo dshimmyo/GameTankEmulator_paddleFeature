@@ -1179,37 +1179,45 @@ void UpdateNTSCTexture() {
             int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
             int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
             int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
-			uint32_t final_pixel;
-			if (!phosphor_blending_enabled)
-			{
-            	final_pixel = (0xFF000000) | (R_int << 16) | (G_int << 8) | B_int;
-			}
-			else
-			{
-				// //simulate phosphor blending to reduce temporal shimmering
-				uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
 
-				int old_r = (old_pixel >> 16) & 0xFF;
-				int old_g = (old_pixel >> 8) & 0xFF;
-				int old_b = old_pixel & 0xFF;
+			// --- SURGICAL LAYER BLEND ---
+            // 1. Extract the raw sharp pixel from the un-simulated source frame buffer
+            uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + x];
+            int sharp_r = (sharp_pixel >> 16) & 0xFF;
+            int sharp_g = (sharp_pixel >> 8) & 0xFF;
+            int sharp_b = sharp_pixel & 0xFF;
 
-				// // Blend 50% old frame and 50% new frame
-				// int blended_r = (old_r + R_int) >> 1;
-				// int blended_g = (old_g + G_int) >> 1;
-				// int blended_b = (old_b + B_int) >> 1;
-				// (New * 3 + Old) / 4
-				// int blended_r = ((R_int * 3) + old_r) >> 2;
-				// int blended_g = ((G_int * 3) + old_g) >> 2;
-				// int blended_b = ((B_int * 3) + old_b) >> 2;
-				int blended_r = ((R_int * 2) + old_r) / 3;
-				int blended_g = ((G_int * 2) + old_g) / 3;
-				int blended_b = ((B_int * 2) + old_b) / 3;
+            // 2. Mix them (60% Sharp Original Layer, 40% NTSC Artifact Layer)
+            int base_mix_r = ((sharp_r * 3) + (R_int * 2)) / 5;
+            int base_mix_g = ((sharp_g * 3) + (G_int * 2)) / 5;
+            int base_mix_b = ((sharp_b * 3) + (B_int * 2)) / 5;
 
-				final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
-			}
-			ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
+            uint32_t final_pixel;
+            if (!phosphor_blending_enabled)
+            {
+                final_pixel = (0xFF000000) | (base_mix_r << 16) | (base_mix_g << 8) | base_mix_b;
+            }
+            else
+            {
+                // Simulate phosphor blending to reduce temporal shimmering on top of the base layer mix
+                uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
+
+                int old_r = (old_pixel >> 16) & 0xFF;
+                int old_g = (old_pixel >> 8) & 0xFF;
+                int old_b = old_pixel & 0xFF;
+
+                int blended_r = ((base_mix_r * 2) + old_r) / 3;
+                int blended_g = ((base_mix_g * 2) + old_g) / 3;
+                int blended_b = ((base_mix_b * 2) + old_b) / 3;
+
+                final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
+            }
+            ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
         }
     }
+
+
+
 
     SDL_UpdateTexture(framebufferTexture, NULL, ntsc_framebuffer.data(), NTSC_WIDTH * 4);
 }
