@@ -1401,8 +1401,8 @@ void refreshScreen() {
 				if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
 					SavePreferences();
 				}
-				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
-					ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
+				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,4)){
+					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 4;
 					SavePreferences();
 				}
 				if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
@@ -1524,8 +1524,8 @@ void refreshScreen() {
 			if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
 				SavePreferences();
 			}
-			if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
-				ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
+			if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,4)){
+				ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 4;
 				SavePreferences();
 			}
 			if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
