@@ -91,15 +91,18 @@ int resetQueued = 0;
 int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 
-#define NTSC_RES_SCALE_DEFAULT 2
+#define NTSC_RES_SCALE_DEFAULT 2.0f
 #define NTSC_BLOOM_DECAY_DEFAULT 0.8f
-#define NTSC_COLOR_SHIFT_DEFAULT 0.8f
-bool ntsc_filter_enabled = false;
-int ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
-bool ntsc_bloom_enabled = false;
+#define NTSC_COLOR_SHIFT_DEFAULT 0.75f
+#define NTSC_FILTER_ENABLED_DEFAULT false
+#define NTSC_BLOOM_ENABLED_DEFAULT false
+#define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT false
+bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
+float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
+bool ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
 float ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//.75
 float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
-bool phosphor_blending_enabled = false;
+bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
 bool dksPaddleDetected = false;
@@ -228,9 +231,9 @@ void SavePreferences() {
 void LoadPreferences() {
     // 1. Establish hardcoded default states (off by default)
     paddle_emulation_enabled = false;
-    ntsc_filter_enabled = false;
-    phosphor_blending_enabled = false;
-	ntsc_bloom_enabled = false;
+    ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
+    phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
+	ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
 	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
@@ -258,8 +261,8 @@ void LoadPreferences() {
                 } else if (key == "phosphor_blending_enabled") {
                     phosphor_blending_enabled = (val != 0);
                 } else if (key == "ntsc_res_scale") {
-                    ntsc_res_scale = val;
-					//ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+                    //ntsc_res_scale = val;
+					ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
                 } else if (key == "ntsc_bloom_enabled"){
 					ntsc_bloom_enabled = val;
 				} else if (key == "ntsc_color_shift") {
@@ -1109,8 +1112,8 @@ bool checkHotkey(SDL_Keycode  key) {
 
 
 void UpdateNTSCTexture() {
-    const int SCALE_X = ntsc_res_scale; // Upscale factor (2x horizontal resolution)
-    const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
+    const float SCALE_X = ntsc_res_scale; // Upscale factor (2x horizontal resolution)
+    const int NTSC_WIDTH = (int)(GT_WIDTH * SCALE_X);
     const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
 
     static std::vector<uint32_t> ntsc_framebuffer;
@@ -1301,7 +1304,7 @@ void refreshScreen() {
     SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 
 	// Determine target dimensions based on the NTSC toggle state
-    int target_tex_w = ntsc_filter_enabled ? (GT_WIDTH * ntsc_res_scale) : GT_WIDTH;
+	int target_tex_w = ntsc_filter_enabled ? (int)(GT_WIDTH * ntsc_res_scale) : GT_WIDTH;
     int target_tex_h = GT_HEIGHT * 2;
 
     // Validate and adjust the texture allocation size dynamically
@@ -1323,9 +1326,10 @@ void refreshScreen() {
 
     src.x = 0;
     src.y = ((system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0) + BORDER_TOP;
-    src.w = GT_WIDTH; // Target the 256 pixel width space inside the texture
 	if (ntsc_filter_enabled){
-		src.w *= ntsc_res_scale; // Target the 256 pixel width space inside the texture
+		src.w = (int)(GT_WIDTH * ntsc_res_scale);
+	} else {
+		src.w = GT_WIDTH;
 	}
     src.h = GT_HEIGHT - (BORDER_TOP + BORDER_BOTTOM); 
     
@@ -1335,9 +1339,10 @@ void refreshScreen() {
 #else
     src.x = 0;
     src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
-    src.w = GT_WIDTH; // Target the 256 pixel width space inside the texture
 	if (ntsc_filter_enabled){
-		src.w *= ntsc_res_scale; // Target the 256 pixel width space inside the texture
+		src.w = (int)(GT_WIDTH * ntsc_res_scale);
+	} else {
+		src.w = GT_WIDTH;
 	}
     src.h = GT_HEIGHT;
 
@@ -1422,15 +1427,19 @@ void refreshScreen() {
 				if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
 					SavePreferences();
 				}
-				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,4)){
-					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 4;
+				if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
+					SavePreferences();
+				}
+				if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
+					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
 					SavePreferences();
 				}
 				if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
 					SavePreferences();
 				}
-				ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.01f,0.99f);
-				ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.01f,2.0f);
+				if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
+				SavePreferences();
+				}
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 					SavePreferences();
 				}
@@ -1547,15 +1556,19 @@ void refreshScreen() {
 			if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
 				SavePreferences();
 			}
-			if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,4)){
-				ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 4;
+			if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
+				SavePreferences();
+			}
+			if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
+				ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
 				SavePreferences();
 			}
 			if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
 				SavePreferences();
 			}
-			ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.01f,0.99f);
-			ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.01f,2.0f);
+			if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
+				SavePreferences();
+			}
 			if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 				SavePreferences();
 			}
