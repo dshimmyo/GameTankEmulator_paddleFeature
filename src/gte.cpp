@@ -95,8 +95,8 @@ bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 #define NTSC_BLOOM_DECAY_DEFAULT 0.8f
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT false
-#define NTSC_BLOOM_ENABLED_DEFAULT false
-#define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT false
+#define NTSC_BLOOM_ENABLED_DEFAULT true
+#define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
 bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
 float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 bool ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
@@ -228,15 +228,18 @@ void SavePreferences() {
     }
 }
 
-void LoadPreferences() {
-    // 1. Establish hardcoded default states (off by default)
-    paddle_emulation_enabled = false;
+void RestoreDefaults() {
+	paddle_emulation_enabled = false;
     ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
     phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 	ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
 	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
+}
+
+void LoadPreferences() {
+	RestoreDefaults();
 
     std::ifstream file("emulator_prefs.cfg");
     if (file.is_open()) {
@@ -1438,9 +1441,14 @@ void refreshScreen() {
 					SavePreferences();
 				}
 				if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
-				SavePreferences();
+					SavePreferences();
 				}
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+					SavePreferences();
+				}
+				if (ImGui::Button("Defaults"))
+				{
+					RestoreDefaults();
 					SavePreferences();
 				}
 				// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
@@ -1570,6 +1578,11 @@ void refreshScreen() {
 				SavePreferences();
 			}
 			if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+				SavePreferences();
+			}
+			if (ImGui::Button("Defaults"))
+			{
+				RestoreDefaults();
 				SavePreferences();
 			}
 
