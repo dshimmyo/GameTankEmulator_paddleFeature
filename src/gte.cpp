@@ -1004,9 +1004,31 @@ void UpdateNTSCTexture() {
 void refreshScreen() {
 	SDL_Rect src, dest;
 	int scr_w, scr_h;
+
+    SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
+
+	// Determine target dimensions based on the NTSC toggle state
+    int target_tex_w = ntsc_filter_enabled ? (GT_WIDTH * ntsc_res_scale) : GT_WIDTH;
+    int target_tex_h = GT_HEIGHT * 2;
+
+    // Validate and adjust the texture allocation size dynamically
+    int current_tex_w = 0, current_tex_h = 0;
+    if (framebufferTexture) {
+        SDL_QueryTexture(framebufferTexture, NULL, NULL, &current_tex_w, &current_tex_h);
+    }
+    if (current_tex_w != target_tex_w) {
+        if (framebufferTexture) SDL_DestroyTexture(framebufferTexture);
+        
+        framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
+                                              SDL_TEXTUREACCESS_STREAMING, target_tex_w, target_tex_h);
+    }
+
 	src.x = 0;
 	src.y = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
 	src.w = GT_WIDTH;
+	if (ntsc_filter_enabled){
+		src.w *= ntsc_res_scale;
+	}
 	src.h = GT_HEIGHT;
 	SDL_GetWindowSize(mainWindow, &scr_w, &scr_h);
 	dest.w = min(scr_w, scr_h);
