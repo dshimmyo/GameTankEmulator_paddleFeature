@@ -1113,11 +1113,25 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
+// Global lookups to eliminate inner loop math entirely
+static bool tables_initialized = false;
+static float sin_table[12];
+static float cos_table[12];
+
+void InitializeNTSCTables() {
+    for (int i = 0; i < 12; ++i) {
+        sin_table[i] = sinf(M_PI * (float)i / 6.0f);
+        cos_table[i] = cosf(M_PI * (float)i / 6.0f);
+    }
+    tables_initialized = true;
+}
 
 void UpdateNTSCTexture() {
-    const float SCALE_X = ntsc_res_scale; // Upscale factor (2x horizontal resolution)
+    if (!tables_initialized) InitializeNTSCTables();
+
+    const float SCALE_X = ntsc_res_scale; 
     const int NTSC_WIDTH = (int)(GT_WIDTH * SCALE_X);
-    const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
+    const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; 
 
     static std::vector<uint32_t> ntsc_framebuffer;
     if (ntsc_framebuffer.size() != (size_t)(NTSC_WIDTH * NTSC_HEIGHT_TOTAL)) {
@@ -1128,162 +1142,150 @@ void UpdateNTSCTexture() {
     int pitch_pixels = vRAM_Surface->pitch / 4;
 
     static float frame_phase_offset = 0.0f;
-    frame_phase_offset = fmod(frame_phase_offset + 4.0f, 12.0f); 
-	
-	std::vector<float> composite_signal(NTSC_WIDTH * 4); // 4 samples per pixel max
+    frame_phase_offset = fmodf(frame_phase_offset + 4.0f, 12.0f); 
+    
+    static std::vector<float> composite_signal;
+    if (composite_signal.size() != (size_t)(NTSC_WIDTH * 4)) {
+        composite_signal.resize(NTSC_WIDTH * 4, 0.0f);
+    }
+
+    const float inv_scale = 1.0f / SCALE_X; // Precalculate reciprocal to swap division for multiplication
+    const float inv_white = 1.0f / 1.200f;  // Precalculate white point scale
 
     for (int y = 0; y < GT_HEIGHT; ++y) {
         int actual_y = current_y_offset + y;
-        float scanline_phase = fmod(frame_phase_offset + (y * 4.0f), 12.0f); 
+        int scanline_phase_int = (int)fmodf(frame_phase_offset + (y * 4.0f), 12.0f); 
 
-        const int SAMPLES_PER_PIXEL = 4; // 256 * 4 keeps the internal subcarrier frequency consistent
+        const int SAMPLES_PER_PIXEL = 4; 
         const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
-        //static std::vector<float> composite_signal(TOTAL_SAMPLES);
 
-		float carryover_r = 0.0f;
-    	float carryover_g = 0.0f;
-    	float carryover_b = 0.0f;
+        float carryover_r = 0.0f, carryover_g = 0.0f, carryover_b = 0.0f;
+        int y_pitch_offset = actual_y * pitch_pixels;
 
-        // ENCODE WITH LINEAR INTERPOLATION
+        // OPTIMIZED ENCODE
         for (int x = 0; x < NTSC_WIDTH; ++x) {
-            float src_x = x / (float)SCALE_X;
-            int x0 = (int)floor(src_x);
-            int x1 = std::min(x0 + 1, GT_WIDTH - 1);
+            float src_x = x * inv_scale; // Multiplication replaces division
+            int x0 = (int)src_x;
+            int x1 = (x0 + 1 < GT_WIDTH) ? x0 + 1 : GT_WIDTH - 1;
             float t = src_x - x0;
+            float inv_t = 1.0f - t;
 
-            uint32_t p0 = src_pixels[actual_y * pitch_pixels + x0];
-            uint32_t p1 = src_pixels[actual_y * pitch_pixels + x1];
+            uint32_t p0 = src_pixels[y_pitch_offset + x0];
+            uint32_t p1 = src_pixels[y_pitch_offset + x1];
 
-            float r = (((p0 >> 16) & 0xFF) * (1.0f - t) + ((p1 >> 16) & 0xFF) * t) / 255.0f;
-            float g = (((p0 >> 8) & 0xFF) * (1.0f - t) + ((p1 >> 8) & 0xFF) * t) / 255.0f;
-            float b = ((p0 & 0xFF) * (1.0f - t) + (p1 & 0xFF) * t) / 255.0f;
+            // Direct bit manipulation with float multipliers
+            float r = (((p0 >> 16) & 0xFF) * inv_t + ((p1 >> 16) & 0xFF) * t) * (1.0f / 255.0f);
+            float g = (((p0 >> 8) & 0xFF) * inv_t + ((p1 >> 8) & 0xFF) * t) * (1.0f / 255.0f);
+            float b = ((p0 & 0xFF) * inv_t + (p1 & 0xFF) * t) * (1.0f / 255.0f);
 
             float Y_val = 0.299f * r + 0.587f * g + 0.114f * b;
             float U_val = (-0.299f * r - 0.587f * g + 0.886f * b) * 0.492111f;
             float V_val = (0.701f * r - 0.587f * g - 0.114f * b) * 0.877283f;
 
-            for (int p = 0; p < SAMPLES_PER_PIXEL; ++p) {
-                int sample_idx = x * SAMPLES_PER_PIXEL + p;
-                float angle = M_PI * (scanline_phase + sample_idx) / 6.0f; 
-                composite_signal[sample_idx] = Y_val + U_val * sin(angle) + V_val * cos(angle);
-            }
+            int sample_base = x * SAMPLES_PER_PIXEL;
+            int wave_phase_base = scanline_phase_int + sample_base;
+
+            // Unrolled loop leveraging static fast arrays
+            int phase0 = (wave_phase_base + 0) % 12;
+            composite_signal[sample_base + 0] = Y_val + U_val * sin_table[phase0] + V_val * cos_table[phase0];
+
+            int phase1 = (wave_phase_base + 1) % 12;
+            composite_signal[sample_base + 1] = Y_val + U_val * sin_table[phase1] + V_val * cos_table[phase1];
+
+            int phase2 = (wave_phase_base + 2) % 12;
+            composite_signal[sample_base + 2] = Y_val + U_val * sin_table[phase2] + V_val * cos_table[phase2];
+
+            int phase3 = (wave_phase_base + 3) % 12;
+            composite_signal[sample_base + 3] = Y_val + U_val * sin_table[phase3] + V_val * cos_table[phase3];
         }
 
-        // FILTER 
+        // --- OPTIMIZED FILTER ---
         float v_prev = composite_signal[0];
-        float dt = 1.0f / (236.25e6f / 11.0f * 2.0f); 
-        float amount = 3.5f; 
-        float composite_white = 1.200f;
+        const float dt = 1.0f / (236.25e6f / 11.0f * 2.0f); 
+        const float amount_factor = 3.5f * 1e-8f; 
 
         for (int i = 0; i < TOTAL_SAMPLES; ++i) {
-            float voltage_ratio = composite_signal[i] / composite_white;
-            float alpha = dt / (voltage_ratio * amount * 1e-8f + dt);
+            float voltage_ratio = composite_signal[i] * inv_white;
+            float alpha = dt / (voltage_ratio * amount_factor + dt);
             v_prev = alpha * composite_signal[i] + (1.0f - alpha) * v_prev;
             composite_signal[i] = v_prev;
         }
 
-        // DECODE
+        // --- OPTIMIZED DECODE ---
         for (int x = 0; x < NTSC_WIDTH; ++x) {
             int center = x * SAMPLES_PER_PIXEL;
-            int begin = center - 6;
-            if (begin < 0) begin = 0;
-            int end = center + 6;
-            if (end > TOTAL_SAMPLES) end = TOTAL_SAMPLES;
+            int begin = (center - 6 > 0) ? center - 6 : 0;
+            int end = (center + 6 < TOTAL_SAMPLES) ? center + 6 : TOTAL_SAMPLES;
 
-            float out_y = 0.0f, out_u = 0.0f, out_v = 0.0f;
-            float sample_scale = 1.0f / (end - begin);
+            float out_u = 0.0f, out_v = 0.0f;
+            float sample_scale = 1.0f / (float)(end - begin);
+            int wave_phase_base = scanline_phase_int + begin;
 
             for (int p = begin; p < end; ++p) {
                 float level = composite_signal[p] * sample_scale;
-                out_y += level;
-                out_u += level * sin(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
-                out_v += level * cos(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
+                int phase = (wave_phase_base++) % 12;
+                out_u += level * sin_table[phase];
+                out_v += level * cos_table[phase];
             }
 
-            out_u *= 1.4f; 
-            out_v *= 1.4f;
+            // Combine scaling multipliers to minimize pipeline stall steps
+            out_u *= 2.8f; 
+            out_v *= 2.8f;
 
-            // Extract the raw sharp pixel first
-            int sharp_x = x / SCALE_X;
-            uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + sharp_x];
+            int sharp_x = (int)(x * inv_scale);
+            uint32_t sharp_pixel = src_pixels[y_pitch_offset + sharp_x];
             int sharp_r = (sharp_pixel >> 16) & 0xFF;
             int sharp_g = (sharp_pixel >> 8) & 0xFF;
             int sharp_b = sharp_pixel & 0xFF;
 
-			// Isolate the pure chroma vectors (omitting out_y)
             float r_chroma = 1.139883f * out_v;
             float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
             float b_chroma = 2.032062f * out_u;
 
-            // Amplify or attenuate the color shifting
-            // Change 1.5f to whatever intensity factor feels right
             r_chroma *= ntsc_color_shift;
             g_chroma *= ntsc_color_shift;
             b_chroma *= ntsc_color_shift;
-			int base_mix_r, base_mix_g, base_mix_b;
+            
+            int base_mix_r, base_mix_g, base_mix_b;
 
-		if (ntsc_bloom_enabled){
-			// Add the base sharp pixel, the chroma artifact, AND the carryover energy from the previous pixel
-			int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
-			int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
-			int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
+            if (ntsc_bloom_enabled) {
+                int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
+                int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
+                int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
 
-			// Calculate the surplus energy that exceeds the standard integer ceiling
-			int surplus_r = std::max(0, raw_r - 255);
-			int surplus_g = std::max(0, raw_g - 255);
-			int surplus_b = std::max(0, raw_b - 255);
+                int surplus_r = (raw_r > 255) ? raw_r - 255 : 0;
+                int surplus_g = (raw_g > 255) ? raw_g - 255 : 0;
+                int surplus_b = (raw_b > 255) ? raw_b - 255 : 0;
 
-			// Decay the surplus to carry it into the next pixel (e.g., 75% persistence)
-			//    Higher values create a wider, more severe horizontal smear behind bright elements
-			carryover_r = surplus_r * ntsc_bloom_decay;
-			carryover_g = surplus_g * ntsc_bloom_decay;
-			carryover_b = surplus_b * ntsc_bloom_decay;
+                carryover_r = surplus_r * ntsc_bloom_decay;
+                carryover_g = surplus_g * ntsc_bloom_decay;
+                carryover_b = surplus_b * ntsc_bloom_decay;
 
-			// Apply the final hard clamp for the current pixel compilation
-			base_mix_r = std::min(255, raw_r);
-			base_mix_g = std::min(255, raw_g);
-			base_mix_b = std::min(255, raw_b);
+                base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
+                base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
+                base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
+            } else {
+                base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
+                base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
+                base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
 
-			// Ensure values don't dip below zero due to negative chroma modulation
-			if (base_mix_r < 0) base_mix_r = 0;
-			if (base_mix_g < 0) base_mix_g = 0;
-			if (base_mix_b < 0) base_mix_b = 0;
-		}
-		else
-		{
-			// Inject the isolated color fringe straight onto the sharp baseline
-            base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
-            base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
-            base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
-
-            // Clamp to safeguard against integer wrapping
-            base_mix_r = std::max(0, std::min(255, base_mix_r));
-            base_mix_g = std::max(0, std::min(255, base_mix_g));
-            base_mix_b = std::max(0, std::min(255, base_mix_b));
-
-		}
-			
-            uint32_t final_pixel;
-            if (!phosphor_blending_enabled)
-            {
-                final_pixel = (0xFF000000) | (base_mix_r << 16) | (base_mix_g << 8) | base_mix_b;
+                if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
+                if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
+                if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
             }
-            else
-            {
-                // Simulate phosphor blending to reduce temporal shimmering on top of the base layer mix
-                uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
-
-                int old_r = (old_pixel >> 16) & 0xFF;
-                int old_g = (old_pixel >> 8) & 0xFF;
-                int old_b = old_pixel & 0xFF;
-
-                int blended_r = ((base_mix_r * 3) + old_r) >> 2;
-                int blended_g = ((base_mix_g * 3) + old_g) >> 2;
-                int blended_b = ((base_mix_b * 3) + old_b) >> 2;
-
+            
+            int target_fb_index = actual_y * NTSC_WIDTH + x;
+            uint32_t final_pixel;
+            if (!phosphor_blending_enabled) {
+                final_pixel = (0xFF000000) | (base_mix_r << 16) | (base_mix_g << 8) | base_mix_b;
+            } else {
+                uint32_t old_pixel = ntsc_framebuffer[target_fb_index];
+                int blended_r = ((base_mix_r * 3) + ((old_pixel >> 16) & 0xFF)) >> 2;
+                int blended_g = ((base_mix_g * 3) + ((old_pixel >> 8) & 0xFF)) >> 2;
+                int blended_b = ((base_mix_b * 3) + (old_pixel & 0xFF)) >> 2;
                 final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
             }
-            ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
+            ntsc_framebuffer[target_fb_index] = final_pixel;
         }
     }
 
