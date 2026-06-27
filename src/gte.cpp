@@ -91,6 +91,7 @@ int muteMask = 0;
 
 bool ntsc_filter_enabled = false;
 int ntsc_res_scale = 1;
+bool ntsc_bloom_enabled = false;
 bool phosphor_blending_enabled = false;
 
 void SaveNVRAM() {
@@ -883,6 +884,10 @@ void UpdateNTSCTexture() {
         const int SAMPLES_PER_PIXEL = 4; // 256 * 4 keeps the internal subcarrier frequency consistent
         const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
         //static std::vector<float> composite_signal(TOTAL_SAMPLES);
+		
+		float carryover_r = 0.0f;
+    	float carryover_g = 0.0f;
+    	float carryover_b = 0.0f;
 
         // ENCODE WITH LINEAR INTERPOLATION
         for (int x = 0; x < NTSC_WIDTH; ++x) {
@@ -964,16 +969,47 @@ void UpdateNTSCTexture() {
             float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
             float b_chroma = 2.032062f * out_u;
 
-            // Inject the isolated color fringe straight onto the sharp baseline
-            int base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
-            int base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
-            int base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
+			int base_mix_r, base_mix_g, base_mix_b;
+		if (ntsc_bloom_enabled){
+			// Add the base sharp pixel, the chroma artifact, AND the carryover energy from the previous pixel
+			int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
+			int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
+			int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
+
+			// Calculate the surplus energy that exceeds the standard integer ceiling
+			int surplus_r = std::max(0, raw_r - 255);
+			int surplus_g = std::max(0, raw_g - 255);
+			int surplus_b = std::max(0, raw_b - 255);
+
+			// Decay the surplus to carry it into the next pixel (e.g., 75% persistence)
+			//    Higher values create a wider, more severe horizontal smear behind bright elements
+			const float bloom_decay = 0.8f;//.75f
+			carryover_r = surplus_r * bloom_decay;
+			carryover_g = surplus_g * bloom_decay;
+			carryover_b = surplus_b * bloom_decay;
+
+			// Apply the final hard clamp for the current pixel compilation
+			base_mix_r = std::min(255, raw_r);
+			base_mix_g = std::min(255, raw_g);
+			base_mix_b = std::min(255, raw_b);
+
+			// Ensure values don't dip below zero due to negative chroma modulation
+			if (base_mix_r < 0) base_mix_r = 0;
+			if (base_mix_g < 0) base_mix_g = 0;
+			if (base_mix_b < 0) base_mix_b = 0;
+		}
+		else
+		{
+			// Inject the isolated color fringe straight onto the sharp baseline
+            base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
+            base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
+            base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
 
             // Clamp to safeguard against integer wrapping
             base_mix_r = std::max(0, std::min(255, base_mix_r));
             base_mix_g = std::max(0, std::min(255, base_mix_g));
             base_mix_b = std::max(0, std::min(255, base_mix_b));
-			
+		}
             uint32_t final_pixel;
             if (!phosphor_blending_enabled)
             {
@@ -1086,6 +1122,7 @@ void refreshScreen() {
 				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
 					ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
 				}
+				ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled);
 				ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled);
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
@@ -1173,6 +1210,7 @@ void refreshScreen() {
 			if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
 				ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
 			}
+			ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled);
 			ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled);
 			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
