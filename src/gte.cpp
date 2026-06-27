@@ -90,9 +90,15 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
+
+#define NTSC_RES_SCALE_DEFAULT 2
+#define NTSC_BLOOM_DECAY_DEFAULT 0.8f
+#define NTSC_COLOR_SHIFT_DEFAULT 0.8f
 bool ntsc_filter_enabled = false;
-int ntsc_res_scale = 3;
+int ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 bool ntsc_bloom_enabled = false;
+float ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//.75
+float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 bool phosphor_blending_enabled = false;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
@@ -212,7 +218,9 @@ void SavePreferences() {
         file << "ntsc_filter_enabled=" << (ntsc_filter_enabled ? "1" : "0") << "\n";
         file << "phosphor_blending_enabled=" << (phosphor_blending_enabled ? "1" : "0") << "\n";
         file << "ntsc_res_scale=" << (ntsc_res_scale) << "\n";
+		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
 		file << "ntsc_bloom_enabled=" << (ntsc_bloom_enabled ? "1" : "0") << "\n";
+		file << "ntsc_bloom_decay=" << (ntsc_bloom_decay) << "\n";//float
         file.close();
     }
 }
@@ -223,6 +231,9 @@ void LoadPreferences() {
     ntsc_filter_enabled = false;
     phosphor_blending_enabled = false;
 	ntsc_bloom_enabled = false;
+	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
+	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
+	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
 
     std::ifstream file("emulator_prefs.cfg");
     if (file.is_open()) {
@@ -248,10 +259,15 @@ void LoadPreferences() {
                     phosphor_blending_enabled = (val != 0);
                 } else if (key == "ntsc_res_scale") {
                     ntsc_res_scale = val;
+					//ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
                 } else if (key == "ntsc_bloom_enabled"){
 					ntsc_bloom_enabled = val;
-				}
-            }
+				} else if (key == "ntsc_color_shift") {
+    				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+            	} else if (key == "ntsc_bloom_decay") {
+    				ntsc_bloom_decay = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+            	}
+			}
         }
         file.close();
     }
@@ -1201,7 +1217,15 @@ void UpdateNTSCTexture() {
             float r_chroma = 1.139883f * out_v;
             float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
             float b_chroma = 2.032062f * out_u;
+
+            // Amplify or attenuate the color shifting
+            // Change 1.5f to whatever intensity factor feels right
+            //const float color_shift_intensity = 1.5f; 
+            r_chroma *= ntsc_color_shift;//color_shift_intensity;
+            g_chroma *= ntsc_color_shift;//color_shift_intensity;
+            b_chroma *= ntsc_color_shift;//color_shift_intensity;
 			int base_mix_r, base_mix_g, base_mix_b;
+
 		if (ntsc_bloom_enabled){
 			// Add the base sharp pixel, the chroma artifact, AND the carryover energy from the previous pixel
 			int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
@@ -1215,10 +1239,10 @@ void UpdateNTSCTexture() {
 
 			// Decay the surplus to carry it into the next pixel (e.g., 75% persistence)
 			//    Higher values create a wider, more severe horizontal smear behind bright elements
-			const float bloom_decay = 0.75f;
-			carryover_r = surplus_r * bloom_decay;
-			carryover_g = surplus_g * bloom_decay;
-			carryover_b = surplus_b * bloom_decay;
+			//const float bloom_decay = 0.75f;
+			carryover_r = surplus_r * ntsc_bloom_decay;//bloom_decay;
+			carryover_g = surplus_g * ntsc_bloom_decay;//bloom_decay;
+			carryover_b = surplus_b * ntsc_bloom_decay;//bloom_decay;
 
 			// Apply the final hard clamp for the current pixel compilation
 			base_mix_r = std::min(255, raw_r);
@@ -1267,9 +1291,6 @@ void UpdateNTSCTexture() {
             ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
         }
     }
-
-
-
 
     SDL_UpdateTexture(framebufferTexture, NULL, ntsc_framebuffer.data(), NTSC_WIDTH * 4);
 }
@@ -1408,6 +1429,8 @@ void refreshScreen() {
 				if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
 					SavePreferences();
 				}
+				ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.01f,0.99f);
+				ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.01f,2.0f);
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 					SavePreferences();
 				}
@@ -1531,6 +1554,8 @@ void refreshScreen() {
 			if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
 				SavePreferences();
 			}
+			ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.01f,0.99f);
+			ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.01f,2.0f);
 			if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 				SavePreferences();
 			}
