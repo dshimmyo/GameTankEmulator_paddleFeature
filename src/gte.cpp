@@ -1203,15 +1203,6 @@ void UpdateNTSCTexture() {
             out_u *= 1.4f; 
             out_v *= 1.4f;
 
-            // float r_out = out_y + 1.139883f * out_v;
-            // float g_out = out_y - 0.394642f * out_u - 0.580622f * out_v;
-            // float b_out = out_y + 2.032062f * out_u;
-
-            // int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
-            // int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
-            // int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
-
-			// --- SURGICAL LAYER BLEND ---
             // Extract the raw sharp pixel first
             int sharp_x = x / SCALE_X;
             uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + sharp_x];
@@ -1226,10 +1217,9 @@ void UpdateNTSCTexture() {
 
             // Amplify or attenuate the color shifting
             // Change 1.5f to whatever intensity factor feels right
-            //const float color_shift_intensity = 1.5f; 
-            r_chroma *= ntsc_color_shift;//color_shift_intensity;
-            g_chroma *= ntsc_color_shift;//color_shift_intensity;
-            b_chroma *= ntsc_color_shift;//color_shift_intensity;
+            r_chroma *= ntsc_color_shift;
+            g_chroma *= ntsc_color_shift;
+            b_chroma *= ntsc_color_shift;
 			int base_mix_r, base_mix_g, base_mix_b;
 
 		if (ntsc_bloom_enabled){
@@ -1245,10 +1235,9 @@ void UpdateNTSCTexture() {
 
 			// Decay the surplus to carry it into the next pixel (e.g., 75% persistence)
 			//    Higher values create a wider, more severe horizontal smear behind bright elements
-			//const float bloom_decay = 0.75f;
-			carryover_r = surplus_r * ntsc_bloom_decay;//bloom_decay;
-			carryover_g = surplus_g * ntsc_bloom_decay;//bloom_decay;
-			carryover_b = surplus_b * ntsc_bloom_decay;//bloom_decay;
+			carryover_r = surplus_r * ntsc_bloom_decay;
+			carryover_g = surplus_g * ntsc_bloom_decay;
+			carryover_b = surplus_b * ntsc_bloom_decay;
 
 			// Apply the final hard clamp for the current pixel compilation
 			base_mix_r = std::min(255, raw_r);
