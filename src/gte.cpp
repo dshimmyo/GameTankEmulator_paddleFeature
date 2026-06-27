@@ -92,11 +92,11 @@ int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 
 #define NTSC_RES_SCALE_DEFAULT 1.5f
-#define NTSC_BLOOM_DECAY_DEFAULT 0.8f
+#define NTSC_BLOOM_DECAY_DEFAULT 0.75f
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
-#define NTSC_BLOOM_ENABLED_DEFAULT false
-#define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT false
+#define NTSC_BLOOM_ENABLED_DEFAULT true
+#define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
 bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
 float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 bool ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
