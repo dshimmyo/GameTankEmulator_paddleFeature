@@ -93,6 +93,7 @@ bool ntsc_filter_enabled = false;
 int ntsc_res_scale = 1;
 bool ntsc_bloom_enabled = false;
 bool phosphor_blending_enabled = false;
+#define NTSC_COLORSHIFT_GAIN .75f
 
 void SaveNVRAM() {
 	fstream file;
@@ -965,9 +966,9 @@ void UpdateNTSCTexture() {
             int sharp_b = sharp_pixel & 0xFF;
 
 			// Isolate the pure chroma vectors (omitting out_y)
-            float r_chroma = 1.139883f * out_v;
-            float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
-            float b_chroma = 2.032062f * out_u;
+            float r_chroma = 1.139883f * out_v * NTSC_COLORSHIFT_GAIN;
+            float g_chroma = -0.394642f * out_u - 0.580622f * out_v * NTSC_COLORSHIFT_GAIN;
+            float b_chroma = 2.032062f * out_u * NTSC_COLORSHIFT_GAIN;
 
 			int base_mix_r, base_mix_g, base_mix_b;
 		if (ntsc_bloom_enabled){
