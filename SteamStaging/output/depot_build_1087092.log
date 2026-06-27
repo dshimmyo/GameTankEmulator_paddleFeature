@@ -1,12 +1,13 @@
-[2026-06-24 14:46:32]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
-[2026-06-24 14:46:32]: Building file listing for depot 1087092 ...
-[2026-06-24 14:46:32]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
-[2026-06-24 14:46:32]: Found 3 files (7 MB) for depot 1087092
-[2026-06-24 14:46:32]: Building depot 1087092, baseline manifest 7300020200615290551 (3 files)
-[2026-06-24 14:46:33]: Found 8 new chunks ( 8 used previously ) for depot 1087092, took 0 minutes, 0 seconds
-[2026-06-24 14:46:33]: Changes to baseline manifest 7300020200615290551 :
-[2026-06-24 14:46:33]: Changed: "gamedata.gtr" 2048 KB size, 1024 KB changed 
-[2026-06-24 14:46:33]: Summary: 0 files added (0 bytes), 1 files changed (1,024 KB), 0 files removed (0 bytes)
-[2026-06-24 14:46:33]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 919884498295415726, 916 bytes).
-[2026-06-24 14:46:38]: Uploading 1 out of 1 missing chunks.
-[2026-06-24 14:46:40]: Success! New manifestID 4915836413933703712 created and 1 new chunks uploaded.
+[2026-06-27 19:19:55]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
+[2026-06-27 19:19:55]: Building file listing for depot 1087092 ...
+[2026-06-27 19:19:55]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
+[2026-06-27 19:19:55]: Found 3 files (7 MB) for depot 1087092
+[2026-06-27 19:19:55]: Building depot 1087092, baseline manifest 7300020200615290551 (3 files)
+[2026-06-27 19:19:56]: Found 8 new chunks ( 8 used previously ) for depot 1087092, took 0 minutes, 0 seconds
+[2026-06-27 19:19:56]: Changes to baseline manifest 7300020200615290551 :
+[2026-06-27 19:19:56]: Changed: "BrickGame" 4048 KB size, 4048 KB changed 
+[2026-06-27 19:19:56]: Changed: "gamedata.gtr" 2048 KB size, 2048 KB changed 
+[2026-06-27 19:19:56]: Summary: 0 files added (0 bytes), 2 files changed (5.95 MB), 0 files removed (0 bytes)
+[2026-06-27 19:19:56]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 10185952497451720557, 917 bytes).
+[2026-06-27 19:19:56]: Uploading 6 out of 6 missing chunks.
+[2026-06-27 19:19:58]: Success! New manifestID 969436793800316447 created and 6 new chunks uploaded.
