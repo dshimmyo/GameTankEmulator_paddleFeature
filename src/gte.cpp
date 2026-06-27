@@ -89,6 +89,10 @@ int resetQueued = 0;
 #define MUTE_SOURCE_MENU 2
 int muteMask = 0;
 
+bool ntsc_filter_enabled = false;
+int ntsc_res_scale = 1;
+bool phosphor_blending_enabled = false;
+
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -854,6 +858,149 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
+void UpdateNTSCTexture() {
+    const int SCALE_X = ntsc_res_scale; // Upscale factor (2x horizontal resolution)
+    const int NTSC_WIDTH = GT_WIDTH * SCALE_X;
+    const int NTSC_HEIGHT_TOTAL = GT_HEIGHT * 2; // Double buffered height stays intact
+
+    static std::vector<uint32_t> ntsc_framebuffer;
+    if (ntsc_framebuffer.size() != (size_t)(NTSC_WIDTH * NTSC_HEIGHT_TOTAL)) {
+        ntsc_framebuffer.resize(NTSC_WIDTH * NTSC_HEIGHT_TOTAL, 0);
+    }
+    int current_y_offset = (system_state.dma_control & DMA_VID_OUT_PAGE_BIT) ? GT_HEIGHT : 0;
+    uint32_t* src_pixels = (uint32_t*)vRAM_Surface->pixels;
+    int pitch_pixels = vRAM_Surface->pitch / 4;
+
+    static float frame_phase_offset = 0.0f;
+    frame_phase_offset = fmod(frame_phase_offset + 4.0f, 12.0f); 
+	
+	std::vector<float> composite_signal(NTSC_WIDTH * 4); // 4 samples per pixel max
+
+    for (int y = 0; y < GT_HEIGHT; ++y) {
+        int actual_y = current_y_offset + y;
+        float scanline_phase = fmod(frame_phase_offset + (y * 4.0f), 12.0f); 
+
+        const int SAMPLES_PER_PIXEL = 4; // 256 * 4 keeps the internal subcarrier frequency consistent
+        const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
+        //static std::vector<float> composite_signal(TOTAL_SAMPLES);
+
+        // ENCODE WITH LINEAR INTERPOLATION
+        for (int x = 0; x < NTSC_WIDTH; ++x) {
+            float src_x = x / (float)SCALE_X;
+            int x0 = (int)floor(src_x);
+            int x1 = std::min(x0 + 1, GT_WIDTH - 1);
+            float t = src_x - x0;
+
+            uint32_t p0 = src_pixels[actual_y * pitch_pixels + x0];
+            uint32_t p1 = src_pixels[actual_y * pitch_pixels + x1];
+
+            float r = (((p0 >> 16) & 0xFF) * (1.0f - t) + ((p1 >> 16) & 0xFF) * t) / 255.0f;
+            float g = (((p0 >> 8) & 0xFF) * (1.0f - t) + ((p1 >> 8) & 0xFF) * t) / 255.0f;
+            float b = ((p0 & 0xFF) * (1.0f - t) + (p1 & 0xFF) * t) / 255.0f;
+
+            float Y_val = 0.299f * r + 0.587f * g + 0.114f * b;
+            float U_val = (-0.299f * r - 0.587f * g + 0.886f * b) * 0.492111f;
+            float V_val = (0.701f * r - 0.587f * g - 0.114f * b) * 0.877283f;
+
+            for (int p = 0; p < SAMPLES_PER_PIXEL; ++p) {
+                int sample_idx = x * SAMPLES_PER_PIXEL + p;
+                float angle = M_PI * (scanline_phase + sample_idx) / 6.0f; 
+                composite_signal[sample_idx] = Y_val + U_val * sin(angle) + V_val * cos(angle);
+            }
+        }
+
+        // FILTER 
+        float v_prev = composite_signal[0];
+        float dt = 1.0f / (236.25e6f / 11.0f * 2.0f); 
+        float amount = 3.5f; 
+        float composite_white = 1.200f;
+
+        for (int i = 0; i < TOTAL_SAMPLES; ++i) {
+            float voltage_ratio = composite_signal[i] / composite_white;
+            float alpha = dt / (voltage_ratio * amount * 1e-8f + dt);
+            v_prev = alpha * composite_signal[i] + (1.0f - alpha) * v_prev;
+            composite_signal[i] = v_prev;
+        }
+
+        // DECODE
+        for (int x = 0; x < NTSC_WIDTH; ++x) {
+            int center = x * SAMPLES_PER_PIXEL;
+            int begin = center - 6;
+            if (begin < 0) begin = 0;
+            int end = center + 6;
+            if (end > TOTAL_SAMPLES) end = TOTAL_SAMPLES;
+
+            float out_y = 0.0f, out_u = 0.0f, out_v = 0.0f;
+            float sample_scale = 1.0f / (end - begin);
+
+            for (int p = begin; p < end; ++p) {
+                float level = composite_signal[p] * sample_scale;
+                out_y += level;
+                out_u += level * sin(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
+                out_v += level * cos(M_PI * (scanline_phase + p) / 6.0f) * 2.0f;
+            }
+
+            out_u *= 1.4f; 
+            out_v *= 1.4f;
+
+            // float r_out = out_y + 1.139883f * out_v;
+            // float g_out = out_y - 0.394642f * out_u - 0.580622f * out_v;
+            // float b_out = out_y + 2.032062f * out_u;
+
+            // int R_int = std::max(0, std::min(255, (int)(r_out * 255.0f)));
+            // int G_int = std::max(0, std::min(255, (int)(g_out * 255.0f)));
+            // int B_int = std::max(0, std::min(255, (int)(b_out * 255.0f)));
+
+			// --- SURGICAL LAYER BLEND ---
+            // Extract the raw sharp pixel first
+            int sharp_x = x / SCALE_X;
+            uint32_t sharp_pixel = src_pixels[actual_y * pitch_pixels + sharp_x];
+            int sharp_r = (sharp_pixel >> 16) & 0xFF;
+            int sharp_g = (sharp_pixel >> 8) & 0xFF;
+            int sharp_b = sharp_pixel & 0xFF;
+
+			// Isolate the pure chroma vectors (omitting out_y)
+            float r_chroma = 1.139883f * out_v;
+            float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
+            float b_chroma = 2.032062f * out_u;
+
+            // Inject the isolated color fringe straight onto the sharp baseline
+            int base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
+            int base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
+            int base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
+
+            // Clamp to safeguard against integer wrapping
+            base_mix_r = std::max(0, std::min(255, base_mix_r));
+            base_mix_g = std::max(0, std::min(255, base_mix_g));
+            base_mix_b = std::max(0, std::min(255, base_mix_b));
+			
+            uint32_t final_pixel;
+            if (!phosphor_blending_enabled)
+            {
+                final_pixel = (0xFF000000) | (base_mix_r << 16) | (base_mix_g << 8) | base_mix_b;
+            }
+            else
+            {
+                // Simulate phosphor blending to reduce temporal shimmering on top of the base layer mix
+                uint32_t old_pixel = ntsc_framebuffer[actual_y * NTSC_WIDTH + x];
+
+                int old_r = (old_pixel >> 16) & 0xFF;
+                int old_g = (old_pixel >> 8) & 0xFF;
+                int old_b = old_pixel & 0xFF;
+
+                int blended_r = ((base_mix_r * 3) + old_r) >> 2;
+                int blended_g = ((base_mix_g * 3) + old_g) >> 2;
+                int blended_b = ((base_mix_b * 3) + old_b) >> 2;
+
+                final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
+            }
+            ntsc_framebuffer[actual_y * NTSC_WIDTH + x] = final_pixel;
+        }
+    }
+
+	SDL_UpdateTexture(framebufferTexture, NULL, ntsc_framebuffer.data(), NTSC_WIDTH * 4);
+}
+
 void refreshScreen() {
 	SDL_Rect src, dest;
 	int scr_w, scr_h;
@@ -867,8 +1014,11 @@ void refreshScreen() {
 	dest.x = (scr_w - dest.w) / 2;
 	dest.y = (scr_h - dest.h) / 2;
 	//SDL_BlitScaled(vRAM_Surface, &src, screenSurface, &dest);
-	SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
-
+	if (ntsc_filter_enabled){
+    	UpdateNTSCTexture();
+	} else {
+		SDL_UpdateTexture(framebufferTexture, NULL, vRAM_Surface->pixels, vRAM_Surface->pitch);
+	}
 	SDL_RenderClear(mainRenderer);
 	SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
@@ -910,6 +1060,11 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
+				ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled);
+				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
+					ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
+				}
+				ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled);
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
 					ImGui::RadioButton("Full Contrast", &palette_select, PALETTE_SELECT_SCALED);
@@ -991,6 +1146,12 @@ void refreshScreen() {
 			ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256, "", ImGuiSliderFlags_NoInput);
 			bool appMute = (muteMask & MUTE_SOURCE_MANUAL) != 0;
 			ImGui::Checkbox("Mute Audio", &appMute);
+			ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
+			ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled);
+			if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,6)){
+				ntsc_res_scale = (ntsc_res_scale <= 6) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 6;
+			}
+			ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled);
 			if(appMute) muteMask |= MUTE_SOURCE_MANUAL;
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
