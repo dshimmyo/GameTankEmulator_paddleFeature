@@ -91,7 +91,7 @@ int resetQueued = 0;
 int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 
-#define NTSC_RES_SCALE_DEFAULT 1.5f
+#define NTSC_RES_SCALE_DEFAULT 1.0f
 #define NTSC_BLOOM_DECAY_DEFAULT 0.75f
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
