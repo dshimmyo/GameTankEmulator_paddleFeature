@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.12 new roms, ntsc filter"
+  "Desc" "v1.0.12a new roms, ntsc filter, menu update"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
