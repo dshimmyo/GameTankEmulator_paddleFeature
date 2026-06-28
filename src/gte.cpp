@@ -229,7 +229,7 @@ void SavePreferences() {
 }
 
 void RestoreDefaults() {
-	paddle_emulation_enabled = false;
+	//paddle_emulation_enabled = false;
     ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
     phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 	ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
@@ -1418,30 +1418,34 @@ void refreshScreen() {
 					SavePreferences();
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
 				}
-				if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
-					SavePreferences();
+				if (ImGui::BeginMenu("Video Filter Options")) {
+					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
+						SavePreferences();
+					}
+					if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
+						SavePreferences();
+					}
+					if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
+						ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
+						SavePreferences();
+					}
+					if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
+						SavePreferences();
+					}
+					if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
+						SavePreferences();
+					}
+					if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+						SavePreferences();
+					}
+					if (ImGui::Button("Defaults"))
+					{
+						RestoreDefaults();
+						SavePreferences();
+					}
+					ImGui::EndMenu();
 				}
-				if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
-					SavePreferences();
-				}
-				if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
-					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
-					SavePreferences();
-				}
-				if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
-					SavePreferences();
-				}
-				if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
-					SavePreferences();
-				}
-				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
-					SavePreferences();
-				}
-				if (ImGui::Button("Defaults"))
-				{
-					RestoreDefaults();
-					SavePreferences();
-				}
+				
 				// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
 				// 	SavePreferences();
 				// 	paddleDetected = false;
@@ -1552,30 +1556,34 @@ void refreshScreen() {
 				SavePreferences();
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
-			if (ImGui::Checkbox("NTSC Filter", &ntsc_filter_enabled)) {
-				SavePreferences();
+			if (ImGui::BeginMenu("Video Filter Options")) {
+				if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
+					SavePreferences();
+				}
+				if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
+					SavePreferences();
+				}
+				if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
+					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
+					SavePreferences();
+				}
+				if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
+					SavePreferences();
+				}
+				if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
+					SavePreferences();
+				}
+				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+					SavePreferences();
+				}
+				if (ImGui::Button("Defaults"))
+				{
+					RestoreDefaults();
+					SavePreferences();
+				}
+				ImGui::EndMenu();
 			}
-			if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
-				SavePreferences();
-			}
-			if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
-				ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
-				SavePreferences();
-			}
-			if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
-				SavePreferences();
-			}
-			if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
-				SavePreferences();
-			}
-			if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
-				SavePreferences();
-			}
-			if (ImGui::Button("Defaults"))
-			{
-				RestoreDefaults();
-				SavePreferences();
-			}
+			
 
 			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
 			// 	SavePreferences();
