@@ -97,11 +97,13 @@ bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 #define NTSC_FILTER_ENABLED_DEFAULT true
 #define NTSC_BLOOM_ENABLED_DEFAULT true
 #define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
+#define NTSC_LEGACY_DEFAULT false
 bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
 float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 bool ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
 float ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//.75
 float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
+bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
 bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
@@ -1214,66 +1216,85 @@ void UpdateNTSCTexture() {
         // --- OPTIMIZED DECODE ---
         for (int x = 0; x < NTSC_WIDTH; ++x) {
             int center = x * SAMPLES_PER_PIXEL;
-            int begin = (center - 6 > 0) ? center - 6 : 0;
+            int begin = (center - 6 > 0) ? center - 6 : 0; // Keep radius fixed at 6
             int end = (center + 6 < TOTAL_SAMPLES) ? center + 6 : TOTAL_SAMPLES;
 
-            float out_u = 0.0f, out_v = 0.0f;
+            float out_y = 0.0f, out_u = 0.0f, out_v = 0.0f;
             float sample_scale = 1.0f / (float)(end - begin);
             int wave_phase_base = scanline_phase_int + begin;
 
             for (int p = begin; p < end; ++p) {
                 float level = composite_signal[p] * sample_scale;
                 int phase = (wave_phase_base++) % 12;
+                out_y += level; // Restore decoded luminance gathering
                 out_u += level * sin_table[phase];
                 out_v += level * cos_table[phase];
             }
 
-            // Combine scaling multipliers to minimize pipeline stall steps
             out_u *= 2.8f; 
             out_v *= 2.8f;
 
-            int sharp_x = (int)(x * inv_scale);
-            uint32_t sharp_pixel = src_pixels[y_pitch_offset + sharp_x];
-            int sharp_r = (sharp_pixel >> 16) & 0xFF;
-            int sharp_g = (sharp_pixel >> 8) & 0xFF;
-            int sharp_b = sharp_pixel & 0xFF;
+			int base_mix_r = 0, base_mix_g = 0, base_mix_b = 0; 
 
-            float r_chroma = 1.139883f * out_v;
-            float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
-            float b_chroma = 2.032062f * out_u;
+			if (ntsc_legacy){
+				// Full reconstruction using decoded out_y instead of sharp_r/g/b
+				// Apply color shift ONLY to the chroma vectors, leaving out_y (luminance) independent
+                float r_out = out_y + (1.139883f * out_v * ntsc_color_shift * 2.0f);
+                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * ntsc_color_shift* 2.0f);
+                float b_out = out_y + (2.032062f * out_u * ntsc_color_shift* 2.0f);
 
-            r_chroma *= ntsc_color_shift;
-            g_chroma *= ntsc_color_shift;
-            b_chroma *= ntsc_color_shift;
-            
-            int base_mix_r, base_mix_g, base_mix_b;
-
-            if (ntsc_bloom_enabled) {
-                int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
-                int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
-                int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
-
-                int surplus_r = (raw_r > 255) ? raw_r - 255 : 0;
-                int surplus_g = (raw_g > 255) ? raw_g - 255 : 0;
-                int surplus_b = (raw_b > 255) ? raw_b - 255 : 0;
-
-                carryover_r = surplus_r * ntsc_bloom_decay;
-                carryover_g = surplus_g * ntsc_bloom_decay;
-                carryover_b = surplus_b * ntsc_bloom_decay;
-
-                base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
-                base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
-                base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
-            } else {
-                base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
-                base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
-                base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
+                // Convert to integer space and apply hard boundary clamping to prevent bitwise corruption
+                base_mix_r = (int)(r_out * 255.0f);
+                base_mix_g = (int)(g_out * 255.0f);
+                base_mix_b = (int)(b_out * 255.0f);
 
                 if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
                 if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
                 if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
-            }
-            
+			}
+			else 
+			{
+
+				int sharp_x = (int)(x * inv_scale);
+				uint32_t sharp_pixel = src_pixels[y_pitch_offset + sharp_x];
+				int sharp_r = (sharp_pixel >> 16) & 0xFF;
+				int sharp_g = (sharp_pixel >> 8) & 0xFF;
+				int sharp_b = sharp_pixel & 0xFF;
+
+				float r_chroma = 1.139883f * out_v;
+				float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
+				float b_chroma = 2.032062f * out_u;
+
+				r_chroma *= ntsc_color_shift;
+				g_chroma *= ntsc_color_shift;
+				b_chroma *= ntsc_color_shift;
+				
+				if (ntsc_bloom_enabled) {
+					int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
+					int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
+					int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
+
+					int surplus_r = (raw_r > 255) ? raw_r - 255 : 0;
+					int surplus_g = (raw_g > 255) ? raw_g - 255 : 0;
+					int surplus_b = (raw_b > 255) ? raw_b - 255 : 0;
+
+					carryover_r = surplus_r * ntsc_bloom_decay;
+					carryover_g = surplus_g * ntsc_bloom_decay;
+					carryover_b = surplus_b * ntsc_bloom_decay;
+
+					base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
+					base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
+					base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
+				} else {
+					base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
+					base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
+					base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
+
+					if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
+					if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
+					if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
+				}
+			}
             int target_fb_index = actual_y * NTSC_WIDTH + x;
             uint32_t final_pixel;
             if (!phosphor_blending_enabled) {
@@ -1438,6 +1459,9 @@ void refreshScreen() {
 					if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 						SavePreferences();
 					}
+					if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
+						SavePreferences();
+					}
 					if (ImGui::Button("Defaults"))
 					{
 						RestoreDefaults();
@@ -1574,6 +1598,9 @@ void refreshScreen() {
 					SavePreferences();
 				}
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
+					SavePreferences();
+				}
+				if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
 					SavePreferences();
 				}
 				if (ImGui::Button("Defaults"))
