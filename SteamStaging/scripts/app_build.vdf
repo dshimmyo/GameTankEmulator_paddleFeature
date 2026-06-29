@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.12b new roms, ntsc filter sc=1, menu update"
+  "Desc" "v1.0.13 legacy ntsc, aa, luma-pin"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
