@@ -1462,7 +1462,6 @@ void refreshScreen() {
 				}
 				if (ImGui::BeginMenu("Video Filter Options")) {
 					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
-						SavePreferences();
 						SDL_ScaleMode scale_mode;
 						if (ntsc_filter_enabled){
 							scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
@@ -1472,6 +1471,7 @@ void refreshScreen() {
 							scale_mode = SDL_ScaleModeNearest;
 						}
 						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+						SavePreferences();
 					}
 					if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
 						SavePreferences();
@@ -1623,19 +1623,16 @@ void refreshScreen() {
 			}
 			if (ImGui::BeginMenu("Video Filter Options")) {
 				if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
-					SavePreferences();
-					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
-						SavePreferences();
-							SDL_ScaleMode scale_mode;
-						if (ntsc_filter_enabled){
-							scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
-						}
-						else
-						{
-							scale_mode = SDL_ScaleModeNearest;
-						}
-						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+					SDL_ScaleMode scale_mode;
+					if (ntsc_filter_enabled){
+						scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
 					}
+					else
+					{
+						scale_mode = SDL_ScaleModeNearest;
+					}
+					SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+					SavePreferences();
 				}
 				if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
 					SavePreferences();
