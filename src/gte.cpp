@@ -108,6 +108,8 @@ enum NTSCMode {
 	NTSC_MODE_LEGACY = 1
 };
 bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
+static int current_aa_selection = 0; // 0 = Crisp Pixels, 1 = Smooth Blending
+const char* aa_modes[] = { "Disabled (Crisp)", "Enabled (Smooth)" };
 const char* modes[] = { "Hybrid (Luma-Pinned)", "Legacy (Full Signal)" };
 static int current_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
 bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
@@ -1461,6 +1463,15 @@ void refreshScreen() {
 				if (ImGui::BeginMenu("Video Filter Options")) {
 					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
 						SavePreferences();
+						SDL_ScaleMode scale_mode;
+						if (ntsc_filter_enabled){
+							scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
+						}
+						else
+						{
+							scale_mode = SDL_ScaleModeNearest;
+						}
+						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
 					}
 					if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
 						SavePreferences();
@@ -1482,6 +1493,12 @@ void refreshScreen() {
 						// Update your engine flags based on selection
 						ntsc_legacy = (current_mode == NTSC_MODE_LEGACY);
 						SavePreferences();
+					}
+					if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
+						SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;	
+						
+						// Updates the GPU sampling state instantly for the next frame
+						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
 					}
 					// if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
 					// 	SavePreferences();
@@ -1607,6 +1624,18 @@ void refreshScreen() {
 			if (ImGui::BeginMenu("Video Filter Options")) {
 				if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
 					SavePreferences();
+					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
+						SavePreferences();
+							SDL_ScaleMode scale_mode;
+						if (ntsc_filter_enabled){
+							scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
+						}
+						else
+						{
+							scale_mode = SDL_ScaleModeNearest;
+						}
+						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+					}
 				}
 				if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
 					SavePreferences();
@@ -1624,13 +1653,16 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 					SavePreferences();
 				}
-				const char* modes[] = { "Hybrid (Luma-Pinned)", "Legacy (Full Signal)" };
-				static int current_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
-
 				if (ImGui::Combo("NTSC Filter Mode", &current_mode, modes, IM_ARRAYSIZE(modes))) {
 					// Update your engine flags based on selection
 					ntsc_legacy = (current_mode == NTSC_MODE_LEGACY);
 					SavePreferences();
+				}
+				if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
+						SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;	
+						
+						// Updates the GPU sampling state instantly for the next frame
+						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
 				}
 				// if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
 				// 	SavePreferences();
@@ -2132,6 +2164,7 @@ int main(int argC, char* argV[]) {
 	randomize_memory();
 	
 	SDL_Init(SDL_INIT_VIDEO);
+	//SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 	atexit(SDL_Quit);
 
 	bmpFont = SDL_CreateRGBSurfaceFrom(font_map, 128, 128, 32, 4 * 128, rmask, gmask, bmask, amask);
