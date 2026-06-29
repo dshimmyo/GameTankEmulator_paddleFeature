@@ -95,19 +95,25 @@ bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
 #define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
-#define NTSC_LEGACY_DEFAULT false
+//#define NTSC_LEGACY_DEFAULT false
 bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
 float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
-enum NTSCMode {
-    NTSC_MODE_HYBRID = 0,
-	NTSC_MODE_LEGACY = 1
-};
-bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
+
+#define NTSC_MODE_LUMA_PINNED 0
+#define NTSC_MODE_TRUE_HYBRID 1
+#define NTSC_MODE_LEGACY 2
+// enum NTSCFilterMode {
+//     NTSC_MODE_LUMA_PINNED = 0,  // The new desaturated, mathematically bounded look
+//     NTSC_MODE_TRUE_HYBRID = 1,  // Sharp pixels + raw chroma + forced bloom
+//     NTSC_MODE_LEGACY      = 2   // Full analog signal simulation (rounded edges)
+// };
+//bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
+const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
+static int ntsc_filter_mode = 0;// ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;//luma, hybrid, legacy
+
 static int current_aa_selection = 0; // 0 = Crisp Pixels, 1 = Smooth Blending
 const char* aa_modes[] = { "Disabled (Crisp)", "Enabled (Smooth)" };
-const char* modes[] = { "Hybrid (Luma-Pinned)", "Legacy (Full Signal)" };
-static int ntsc_filter_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
 bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
@@ -358,7 +364,7 @@ void SavePreferences() {
         file << "ntsc_res_scale=" << (ntsc_res_scale) << "\n";
 		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
 		file << "current_aa_selection=" << (current_aa_selection) << "\n";
-		file << "ntsc_legacy=" << (ntsc_legacy) << "\n";
+		file << "ntsc_filter_mode=" << (ntsc_filter_mode) << "\n";
         file.close();
     }
 }
@@ -369,8 +375,8 @@ void RestoreDefaults() {
     phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
-	ntsc_legacy = NTSC_LEGACY_DEFAULT;
-	ntsc_filter_mode = ntsc_legacy;
+	//ntsc_legacy = NTSC_LEGACY_DEFAULT;
+	ntsc_filter_mode = 0;//0=luma-pinned
 	current_aa_selection = 0;
 	SDL_ScaleMode scale_mode;
 	if (ntsc_filter_enabled){
@@ -413,9 +419,9 @@ void LoadPreferences() {
 					ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
 				} else if (key == "ntsc_color_shift") {
     				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
-            	} else if (key == "ntsc_legacy"){
-					ntsc_legacy = val;
-					ntsc_filter_mode = ntsc_legacy;
+            	} else if (key == "ntsc_filter_mode"){
+					//ntsc_legacy = val;
+					ntsc_filter_mode = val;
 				} else if (key == "current_aa_selection"){
 					current_aa_selection = val;
 					SDL_ScaleMode scale_mode;
@@ -1238,6 +1244,10 @@ void UpdateNTSCTexture() {
             v_prev = alpha * composite_signal[i] + (1.0f - alpha) * v_prev;
             composite_signal[i] = v_prev;
         }
+		// Calculate resolution-dependent bloom decay automatically
+		float dynamic_decay = (0.1667f * SCALE_X) + 0.3333f;
+		if (dynamic_decay > 0.95f) dynamic_decay = 0.95f; // Protect against infinite trailing feedback
+		if (dynamic_decay < 0.0f) dynamic_decay = 0.0f;
 
         // --- OPTIMIZED DECODE ---
         for (int x = 0; x < NTSC_WIDTH; ++x) {
@@ -1262,7 +1272,7 @@ void UpdateNTSCTexture() {
 
 			int base_mix_r = 0, base_mix_g = 0, base_mix_b = 0; 
 
-			if (ntsc_legacy){
+			if (ntsc_filter_mode == NTSC_MODE_LEGACY){//2 legacy //0 luma pinned, 1 true hybrid, 2 legacy
 				// Full reconstruction using decoded out_y instead of sharp_r/g/b
 				// Apply color shift ONLY to the chroma vectors, leaving out_y (luminance) independent
                 float r_out = out_y + (1.139883f * out_v * ntsc_color_shift );
@@ -1278,7 +1288,43 @@ void UpdateNTSCTexture() {
                 if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
                 if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
 			}
-			else 
+			else if (ntsc_filter_mode == NTSC_MODE_TRUE_HYBRID) { // Mode 1: True Hybrid with Bloom
+                // 1. Extract the raw, sharp native pixel components (0-255 integer space)
+                int sharp_x = (int)(x * inv_scale);
+                uint32_t sharp_pixel = src_pixels[y_pitch_offset + sharp_x];
+                int sharp_r = (sharp_pixel >> 16) & 0xFF;
+                int sharp_g = (sharp_pixel >> 8) & 0xFF;
+                int sharp_b = sharp_pixel & 0xFF;
+
+                // 2. Decode pure isolated analog chroma components
+                float u_scaled = out_u * ntsc_color_shift;
+                float v_scaled = out_v * ntsc_color_shift;
+                
+                float r_chroma = 1.139883f * v_scaled;
+                float g_chroma = -0.394642f * u_scaled - 0.580622f * v_scaled;
+                float b_chroma = 2.032062f * u_scaled * 2.0f; // Kept x2 multiplier matching your legacy blue pass
+
+                // 3. Stacking: Native components + pure analog chroma changes + trailing horizontal energy
+                int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
+                int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
+                int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
+
+                // 4. Calculate energy spillover for the next horizontal iteration
+                carryover_r = (raw_r > 255) ? (float)(raw_r - 255) : 0.0f;
+                carryover_g = (raw_g > 255) ? (float)(raw_g - 255) : 0.0f;
+                carryover_b = (raw_b > 255) ? (float)(raw_b - 255) : 0.0f;
+
+				//static const float bloomDecay = 0.7f;
+				carryover_r *= dynamic_decay;
+				carryover_g *= dynamic_decay;
+				carryover_b *= dynamic_decay;
+
+                // 5. Final clamped pixel values for the immediate frame rendering pass
+                base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
+                base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
+                base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
+            }
+			else// if (ntsc_filter_mode == NTSC_MODE_LUMA_PINNED)  //fallback 0
 			{
 			// --- LUMINANCE-PINNED CHROMA BLENDING ---
             
@@ -1309,7 +1355,7 @@ void UpdateNTSCTexture() {
 			if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
 			if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
             
-			}
+			} 
             int target_fb_index = actual_y * NTSC_WIDTH + x;
             uint32_t final_pixel;
             if (!phosphor_blending_enabled) {
@@ -1479,7 +1525,7 @@ void refreshScreen() {
 					}
 					if (ImGui::Combo("NTSC Filter Mode", &ntsc_filter_mode, modes, IM_ARRAYSIZE(modes))) {
 						// Update your engine flags based on selection
-						ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
+						//ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
 						SavePreferences();
 					}
 					if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
@@ -1632,7 +1678,7 @@ void refreshScreen() {
 				}
 				if (ImGui::Combo("NTSC Filter Mode", &ntsc_filter_mode, modes, IM_ARRAYSIZE(modes))) {
 					// Update your engine flags based on selection
-					ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
+					//ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
 					SavePreferences();
 				}
 				if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
