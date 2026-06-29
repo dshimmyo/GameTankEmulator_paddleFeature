@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.13 legacy ntsc, aa, luma-pin"
+  "Desc" "v1.0.13a legacy ntsc, aa, luma-pin, kill bloom"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
