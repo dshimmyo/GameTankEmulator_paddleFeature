@@ -103,7 +103,13 @@ float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 bool ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
 float ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//.75
 float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
+enum NTSCMode {
+    NTSC_MODE_HYBRID = 0,
+	NTSC_MODE_LEGACY = 1
+};
 bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
+const char* modes[] = { "Hybrid (Luma-Pinned)", "Legacy (Full Signal)" };
+static int current_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
 bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
@@ -238,6 +244,8 @@ void RestoreDefaults() {
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
 	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
+	ntsc_legacy = NTSC_LEGACY_DEFAULT;
+	current_mode = ntsc_legacy;
 }
 
 void LoadPreferences() {
@@ -1239,8 +1247,8 @@ void UpdateNTSCTexture() {
 			if (ntsc_legacy){
 				// Full reconstruction using decoded out_y instead of sharp_r/g/b
 				// Apply color shift ONLY to the chroma vectors, leaving out_y (luminance) independent
-                float r_out = out_y + (1.139883f * out_v * ntsc_color_shift * 2.0f);
-                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * ntsc_color_shift* 2.0f);
+                float r_out = out_y + (1.139883f * out_v * ntsc_color_shift );
+                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * ntsc_color_shift /** 2.0f*/);
                 float b_out = out_y + (2.032062f * out_u * ntsc_color_shift* 2.0f);
 
                 // Convert to integer space and apply hard boundary clamping to prevent bitwise corruption
@@ -1254,46 +1262,57 @@ void UpdateNTSCTexture() {
 			}
 			else 
 			{
+			// --- LUMINANCE-PINNED CHROMA BLENDING ---
+            
+            // Extract the raw sharp pixel and normalize to [0.0, 1.0]
+            int sharp_x = (int)(x * inv_scale);
+            uint32_t sharp_pixel = src_pixels[y_pitch_offset + sharp_x];
+            float sharp_r = ((sharp_pixel >> 16) & 0xFF) / 255.0f;
+            float sharp_g = ((sharp_pixel >> 8) & 0xFF) / 255.0f;
+            float sharp_b = (sharp_pixel & 0xFF) / 255.0f;
 
-				int sharp_x = (int)(x * inv_scale);
-				uint32_t sharp_pixel = src_pixels[y_pitch_offset + sharp_x];
-				int sharp_r = (sharp_pixel >> 16) & 0xFF;
-				int sharp_g = (sharp_pixel >> 8) & 0xFF;
-				int sharp_b = sharp_pixel & 0xFF;
+            // Compute pristine, razor-sharp structural luminance (Y)
+            float sharp_y = 0.299f * sharp_r + 0.587f * sharp_g + 0.114f * sharp_b;
 
-				float r_chroma = 1.139883f * out_v;
-				float g_chroma = -0.394642f * out_u - 0.580622f * out_v;
-				float b_chroma = 2.032062f * out_u;
+            // Apply color shift multiplier directly to the decoded analog chroma paths
+            float u_scaled = out_u * ntsc_color_shift;
+            float v_scaled = out_v * ntsc_color_shift;
 
-				r_chroma *= ntsc_color_shift;
-				g_chroma *= ntsc_color_shift;
-				b_chroma *= ntsc_color_shift;
-				
-				if (ntsc_bloom_enabled) {
-					int raw_r = sharp_r + (int)(r_chroma * 255.0f) + (int)carryover_r;
-					int raw_g = sharp_g + (int)(g_chroma * 255.0f) + (int)carryover_g;
-					int raw_b = sharp_b + (int)(b_chroma * 255.0f) + (int)carryover_b;
+            if (ntsc_bloom_enabled) {
+                // Incorporate the horizontal energy carryover into the sharp luminance base
+                float r_out = sharp_y + 1.139883f * v_scaled + (carryover_r / 255.0f);
+                float g_out = sharp_y + (-0.394642f * u_scaled - 0.580622f * v_scaled) + (carryover_g / 255.0f);
+                float b_out = sharp_y + 2.032062f * u_scaled + (carryover_b / 255.0f);
 
-					int surplus_r = (raw_r > 255) ? raw_r - 255 : 0;
-					int surplus_g = (raw_g > 255) ? raw_g - 255 : 0;
-					int surplus_b = (raw_b > 255) ? raw_b - 255 : 0;
+                int raw_r = (int)(r_out * 255.0f);
+                int raw_g = (int)(g_out * 255.0f);
+                int raw_b = (int)(b_out * 255.0f);
 
-					carryover_r = surplus_r * ntsc_bloom_decay;
-					carryover_g = surplus_g * ntsc_bloom_decay;
-					carryover_b = surplus_b * ntsc_bloom_decay;
+                int surplus_r = (raw_r > 255) ? raw_r - 255 : 0;
+                int surplus_g = (raw_g > 255) ? raw_g - 255 : 0;
+                int surplus_b = (raw_b > 255) ? raw_b - 255 : 0;
 
-					base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
-					base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
-					base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
-				} else {
-					base_mix_r = sharp_r + (int)(r_chroma * 255.0f);
-					base_mix_g = sharp_g + (int)(g_chroma * 255.0f);
-					base_mix_b = sharp_b + (int)(b_chroma * 255.0f);
+                carryover_r = surplus_r * ntsc_bloom_decay;
+                carryover_g = surplus_g * ntsc_bloom_decay;
+                carryover_b = surplus_b * ntsc_bloom_decay;
 
-					if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
-					if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
-					if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
-				}
+                base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
+                base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
+                base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
+            } else {
+                // Reconstruct RGB using sharp details + analog color vectors
+                float r_out = sharp_y + 1.139883f * v_scaled;
+                float g_out = sharp_y - 0.394642f * u_scaled - 0.580622f * v_scaled;
+                float b_out = sharp_y + 2.032062f * u_scaled;
+
+                base_mix_r = (int)(r_out * 255.0f);
+                base_mix_g = (int)(g_out * 255.0f);
+                base_mix_b = (int)(b_out * 255.0f);
+
+                if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
+                if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
+                if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
+            }
 			}
             int target_fb_index = actual_y * NTSC_WIDTH + x;
             uint32_t final_pixel;
@@ -1459,9 +1478,14 @@ void refreshScreen() {
 					if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 						SavePreferences();
 					}
-					if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
+					if (ImGui::Combo("NTSC Filter Mode", &current_mode, modes, IM_ARRAYSIZE(modes))) {
+						// Update your engine flags based on selection
+						ntsc_legacy = (current_mode == NTSC_MODE_LEGACY);
 						SavePreferences();
 					}
+					// if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
+					// 	SavePreferences();
+					// }
 					if (ImGui::Button("Defaults"))
 					{
 						RestoreDefaults();
@@ -1600,9 +1624,17 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 					SavePreferences();
 				}
-				if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
+				const char* modes[] = { "Hybrid (Luma-Pinned)", "Legacy (Full Signal)" };
+				static int current_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
+
+				if (ImGui::Combo("NTSC Filter Mode", &current_mode, modes, IM_ARRAYSIZE(modes))) {
+					// Update your engine flags based on selection
+					ntsc_legacy = (current_mode == NTSC_MODE_LEGACY);
 					SavePreferences();
 				}
+				// if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
+				// 	SavePreferences();
+				// }
 				if (ImGui::Button("Defaults"))
 				{
 					RestoreDefaults();
