@@ -111,7 +111,7 @@ bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
 static int current_aa_selection = 0; // 0 = Crisp Pixels, 1 = Smooth Blending
 const char* aa_modes[] = { "Disabled (Crisp)", "Enabled (Smooth)" };
 const char* modes[] = { "Hybrid (Luma-Pinned)", "Legacy (Full Signal)" };
-static int current_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
+static int ntsc_filter_mode = ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;
 bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
@@ -223,73 +223,6 @@ const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
 // 	}
 //     //}
 // }
-
-void SavePreferences() {
-    std::ofstream file("emulator_prefs.cfg");
-    if (file.is_open()) {
-        file << "paddle_emulation_enabled=" << (paddle_emulation_enabled ? "1" : "0") << "\n";
-        file << "ntsc_filter_enabled=" << (ntsc_filter_enabled ? "1" : "0") << "\n";
-        file << "phosphor_blending_enabled=" << (phosphor_blending_enabled ? "1" : "0") << "\n";
-        file << "ntsc_res_scale=" << (ntsc_res_scale) << "\n";
-		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
-		file << "ntsc_bloom_enabled=" << (ntsc_bloom_enabled ? "1" : "0") << "\n";
-		file << "ntsc_bloom_decay=" << (ntsc_bloom_decay) << "\n";//float
-        file.close();
-    }
-}
-
-void RestoreDefaults() {
-	//paddle_emulation_enabled = false;
-    ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
-    phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
-	ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
-	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
-	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
-	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
-	ntsc_legacy = NTSC_LEGACY_DEFAULT;
-	current_mode = ntsc_legacy;
-}
-
-void LoadPreferences() {
-	RestoreDefaults();
-
-    std::ifstream file("emulator_prefs.cfg");
-    if (file.is_open()) {
-        std::string line;
-        while (std::getline(file, line)) {
-            // Skip empty lines or lines meant as comments
-            if (line.empty() || line[0] == '#') continue;
-
-            size_t delim_pos = line.find('=');
-            if (delim_pos != std::string::npos) {
-                std::string key = line.substr(0, delim_pos);
-                std::string val_str = line.substr(delim_pos + 1);
-                
-                // Convert value string to integer (0 or 1)
-                int val = std::atoi(val_str.c_str());
-
-                // 2. Map explicit keys to matching global states
-                if (key == "paddle_emulation_enabled") {
-                    paddle_emulation_enabled = (val != 0);
-                } else if (key == "ntsc_filter_enabled") {
-                    ntsc_filter_enabled = (val != 0);
-                } else if (key == "phosphor_blending_enabled") {
-                    phosphor_blending_enabled = (val != 0);
-                } else if (key == "ntsc_res_scale") {
-                    //ntsc_res_scale = val;
-					ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
-                } else if (key == "ntsc_bloom_enabled"){
-					ntsc_bloom_enabled = val;
-				} else if (key == "ntsc_color_shift") {
-    				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
-            	} else if (key == "ntsc_bloom_decay") {
-    				ntsc_bloom_decay = (float)std::atof(val_str.c_str()); // Use atof for float conversion
-            	}
-			}
-        }
-        file.close();
-    }
-}
 
 void SaveNVRAM() {
 	fstream file;
@@ -418,6 +351,100 @@ bool isFullScreen = false;
 bool profiler_open = false;
 bool buffers_open = false;
 int profiler_x_axis = 0;
+
+
+void SavePreferences() {
+    std::ofstream file("emulator_prefs.cfg");
+    if (file.is_open()) {
+        file << "paddle_emulation_enabled=" << (paddle_emulation_enabled ? "1" : "0") << "\n";
+        file << "ntsc_filter_enabled=" << (ntsc_filter_enabled ? "1" : "0") << "\n";
+        file << "phosphor_blending_enabled=" << (phosphor_blending_enabled ? "1" : "0") << "\n";
+        file << "ntsc_res_scale=" << (ntsc_res_scale) << "\n";
+		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
+		file << "ntsc_bloom_enabled=" << (ntsc_bloom_enabled ? "1" : "0") << "\n";
+		file << "ntsc_bloom_decay=" << (ntsc_bloom_decay) << "\n";//float
+		file << "current_aa_selection=" << (current_aa_selection) << "\n";
+		file << "ntsc_legacy=" << (ntsc_legacy) << "\n";
+        file.close();
+    }
+}
+
+void RestoreDefaults() {
+	//paddle_emulation_enabled = false;
+    ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
+    phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
+	ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
+	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
+	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
+	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
+	ntsc_legacy = NTSC_LEGACY_DEFAULT;
+	current_aa_selection = 0;
+	SDL_ScaleMode scale_mode;
+	if (ntsc_filter_enabled){
+		scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
+	}
+	else
+	{
+		scale_mode = SDL_ScaleModeNearest;
+	}
+	SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+}
+
+void LoadPreferences() {
+	RestoreDefaults();
+
+    std::ifstream file("emulator_prefs.cfg");
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            // Skip empty lines or lines meant as comments
+            if (line.empty() || line[0] == '#') continue;
+
+            size_t delim_pos = line.find('=');
+            if (delim_pos != std::string::npos) {
+                std::string key = line.substr(0, delim_pos);
+                std::string val_str = line.substr(delim_pos + 1);
+                
+                // Convert value string to integer (0 or 1)
+                int val = std::atoi(val_str.c_str());
+
+                // 2. Map explicit keys to matching global states
+                if (key == "paddle_emulation_enabled") {
+                    paddle_emulation_enabled = (val != 0);
+                } else if (key == "ntsc_filter_enabled") {
+                    ntsc_filter_enabled = (val != 0);
+                } else if (key == "phosphor_blending_enabled") {
+                    phosphor_blending_enabled = (val != 0);
+                } else if (key == "ntsc_res_scale") {
+                    //ntsc_res_scale = val;
+					ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+                } else if (key == "ntsc_bloom_enabled"){
+					ntsc_bloom_enabled = val;
+				} else if (key == "ntsc_color_shift") {
+    				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+            	} else if (key == "ntsc_bloom_decay") {
+    				ntsc_bloom_decay = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+            	} else if (key == "ntsc_legacy"){
+					ntsc_legacy = val;
+					ntsc_filter_mode = ntsc_legacy;
+				} else if (key == "current_aa_selection"){
+					current_aa_selection = val;
+					SDL_ScaleMode scale_mode;
+					if (ntsc_filter_enabled){
+						scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
+					}
+					else
+					{
+						scale_mode = SDL_ScaleModeNearest;
+					}
+					SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+				}
+			}
+        }
+        file.close();
+    }
+}
+
 
 uint8_t open_bus() {
 	return rand() % 256;
@@ -1489,9 +1516,9 @@ void refreshScreen() {
 					if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 						SavePreferences();
 					}
-					if (ImGui::Combo("NTSC Filter Mode", &current_mode, modes, IM_ARRAYSIZE(modes))) {
+					if (ImGui::Combo("NTSC Filter Mode", &ntsc_filter_mode, modes, IM_ARRAYSIZE(modes))) {
 						// Update your engine flags based on selection
-						ntsc_legacy = (current_mode == NTSC_MODE_LEGACY);
+						ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
 						SavePreferences();
 					}
 					if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
@@ -1499,10 +1526,8 @@ void refreshScreen() {
 						
 						// Updates the GPU sampling state instantly for the next frame
 						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+						SavePreferences();
 					}
-					// if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
-					// 	SavePreferences();
-					// }
 					if (ImGui::Button("Defaults"))
 					{
 						RestoreDefaults();
@@ -1650,20 +1675,18 @@ void refreshScreen() {
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 					SavePreferences();
 				}
-				if (ImGui::Combo("NTSC Filter Mode", &current_mode, modes, IM_ARRAYSIZE(modes))) {
+				if (ImGui::Combo("NTSC Filter Mode", &ntsc_filter_mode, modes, IM_ARRAYSIZE(modes))) {
 					// Update your engine flags based on selection
-					ntsc_legacy = (current_mode == NTSC_MODE_LEGACY);
+					ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
 					SavePreferences();
 				}
 				if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
-						SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;	
-						
-						// Updates the GPU sampling state instantly for the next frame
-						SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+					SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;	
+					
+					// Updates the GPU sampling state instantly for the next frame
+					SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+					SavePreferences();
 				}
-				// if (ImGui::Checkbox("NTSC_Legacy", &ntsc_legacy)) {
-				// 	SavePreferences();
-				// }
 				if (ImGui::Button("Defaults"))
 				{
 					RestoreDefaults();
@@ -2175,7 +2198,10 @@ int main(int argC, char* argV[]) {
 	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
-
+	if (ntsc_filter_enabled){
+		SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
+		SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
+	}
 #ifndef WASM_BUILD
 	main_imgui_ctx = ImGui::CreateContext();
 	main_implot_ctx = ImPlot::CreateContext();
