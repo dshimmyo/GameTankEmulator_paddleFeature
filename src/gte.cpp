@@ -92,16 +92,12 @@ int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 
 #define NTSC_RES_SCALE_DEFAULT 1.0f
-#define NTSC_BLOOM_DECAY_DEFAULT 0.75f
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
-#define NTSC_BLOOM_ENABLED_DEFAULT true
 #define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
 #define NTSC_LEGACY_DEFAULT false
 bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
 float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
-bool ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
-float ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//.75
 float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 enum NTSCMode {
     NTSC_MODE_HYBRID = 0,
@@ -361,8 +357,6 @@ void SavePreferences() {
         file << "phosphor_blending_enabled=" << (phosphor_blending_enabled ? "1" : "0") << "\n";
         file << "ntsc_res_scale=" << (ntsc_res_scale) << "\n";
 		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
-		file << "ntsc_bloom_enabled=" << (ntsc_bloom_enabled ? "1" : "0") << "\n";
-		file << "ntsc_bloom_decay=" << (ntsc_bloom_decay) << "\n";//float
 		file << "current_aa_selection=" << (current_aa_selection) << "\n";
 		file << "ntsc_legacy=" << (ntsc_legacy) << "\n";
         file.close();
@@ -373,11 +367,10 @@ void RestoreDefaults() {
 	//paddle_emulation_enabled = false;
     ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
     phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
-	ntsc_bloom_enabled = NTSC_BLOOM_ENABLED_DEFAULT;
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
-	ntsc_bloom_decay = NTSC_BLOOM_DECAY_DEFAULT;//float
 	ntsc_legacy = NTSC_LEGACY_DEFAULT;
+	ntsc_filter_mode = ntsc_legacy;
 	current_aa_selection = 0;
 	SDL_ScaleMode scale_mode;
 	if (ntsc_filter_enabled){
@@ -418,12 +411,8 @@ void LoadPreferences() {
                 } else if (key == "ntsc_res_scale") {
                     //ntsc_res_scale = val;
 					ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
-                } else if (key == "ntsc_bloom_enabled"){
-					ntsc_bloom_enabled = val;
 				} else if (key == "ntsc_color_shift") {
     				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
-            	} else if (key == "ntsc_bloom_decay") {
-    				ntsc_bloom_decay = (float)std::atof(val_str.c_str()); // Use atof for float conversion
             	} else if (key == "ntsc_legacy"){
 					ntsc_legacy = val;
 					ntsc_filter_mode = ntsc_legacy;
@@ -1307,41 +1296,19 @@ void UpdateNTSCTexture() {
             float u_scaled = out_u * ntsc_color_shift;
             float v_scaled = out_v * ntsc_color_shift;
 
-            if (ntsc_bloom_enabled) {
-                // Incorporate the horizontal energy carryover into the sharp luminance base
-                float r_out = sharp_y + 1.139883f * v_scaled + (carryover_r / 255.0f);
-                float g_out = sharp_y + (-0.394642f * u_scaled - 0.580622f * v_scaled) + (carryover_g / 255.0f);
-                float b_out = sharp_y + 2.032062f * u_scaled + (carryover_b / 255.0f);
+			// Reconstruct RGB using sharp details + analog color vectors
+			float r_out = sharp_y + 1.139883f * v_scaled;
+			float g_out = sharp_y - 0.394642f * u_scaled - 0.580622f * v_scaled;
+			float b_out = sharp_y + 2.032062f * u_scaled;
 
-                int raw_r = (int)(r_out * 255.0f);
-                int raw_g = (int)(g_out * 255.0f);
-                int raw_b = (int)(b_out * 255.0f);
+			base_mix_r = (int)(r_out * 255.0f);
+			base_mix_g = (int)(g_out * 255.0f);
+			base_mix_b = (int)(b_out * 255.0f);
 
-                int surplus_r = (raw_r > 255) ? raw_r - 255 : 0;
-                int surplus_g = (raw_g > 255) ? raw_g - 255 : 0;
-                int surplus_b = (raw_b > 255) ? raw_b - 255 : 0;
-
-                carryover_r = surplus_r * ntsc_bloom_decay;
-                carryover_g = surplus_g * ntsc_bloom_decay;
-                carryover_b = surplus_b * ntsc_bloom_decay;
-
-                base_mix_r = (raw_r > 255) ? 255 : ((raw_r < 0) ? 0 : raw_r);
-                base_mix_g = (raw_g > 255) ? 255 : ((raw_g < 0) ? 0 : raw_g);
-                base_mix_b = (raw_b > 255) ? 255 : ((raw_b < 0) ? 0 : raw_b);
-            } else {
-                // Reconstruct RGB using sharp details + analog color vectors
-                float r_out = sharp_y + 1.139883f * v_scaled;
-                float g_out = sharp_y - 0.394642f * u_scaled - 0.580622f * v_scaled;
-                float b_out = sharp_y + 2.032062f * u_scaled;
-
-                base_mix_r = (int)(r_out * 255.0f);
-                base_mix_g = (int)(g_out * 255.0f);
-                base_mix_b = (int)(b_out * 255.0f);
-
-                if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
-                if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
-                if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
-            }
+			if (base_mix_r > 255) base_mix_r = 255; else if (base_mix_r < 0) base_mix_r = 0;
+			if (base_mix_g > 255) base_mix_g = 255; else if (base_mix_g < 0) base_mix_g = 0;
+			if (base_mix_b > 255) base_mix_b = 255; else if (base_mix_b < 0) base_mix_b = 0;
+            
 			}
             int target_fb_index = actual_y * NTSC_WIDTH + x;
             uint32_t final_pixel;
@@ -1507,12 +1474,6 @@ void refreshScreen() {
 						ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
 						SavePreferences();
 					}
-					if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
-						SavePreferences();
-					}
-					if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
-						SavePreferences();
-					}
 					if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
 						SavePreferences();
 					}
@@ -1664,12 +1625,6 @@ void refreshScreen() {
 				}
 				if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
 					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
-					SavePreferences();
-				}
-				if (ImGui::Checkbox("NTSC Bloom", &ntsc_bloom_enabled)){
-					SavePreferences();
-				}
-				if (ImGui::SliderFloat("NTSC Bloom Decay",&ntsc_bloom_decay,0.05f,0.95f, "%.2f")){
 					SavePreferences();
 				}
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
