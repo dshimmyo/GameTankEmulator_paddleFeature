@@ -1361,10 +1361,18 @@ void UpdateNTSCTexture() {
             if (!phosphor_blending_enabled) {
                 final_pixel = (0xFF000000) | (base_mix_r << 16) | (base_mix_g << 8) | base_mix_b;
             } else {
-                uint32_t old_pixel = ntsc_framebuffer[target_fb_index];
-                int blended_r = ((base_mix_r * 3) + ((old_pixel >> 16) & 0xFF)) >> 2;
-                int blended_g = ((base_mix_g * 3) + ((old_pixel >> 8) & 0xFF)) >> 2;
-                int blended_b = ((base_mix_b * 3) + (old_pixel & 0xFF)) >> 2;
+				// Locate the opposite page to target the actual previous frame
+                int prev_y_offset = (current_y_offset == 0) ? GT_HEIGHT : 0;
+                int history_fb_index = (prev_y_offset + y) * NTSC_WIDTH + x;
+                
+                uint32_t old_pixel = ntsc_framebuffer[history_fb_index];
+
+                // Perform a strict 50/50 blend (equal weighting)
+                // This averages the +Phase and -Phase cycles out to a stable constant
+                int blended_r = (base_mix_r + ((old_pixel >> 16) & 0xFF)) >> 1;
+                int blended_g = (base_mix_g + ((old_pixel >> 8) & 0xFF)) >> 1;
+                int blended_b = (base_mix_b + (old_pixel & 0xFF)) >> 1;
+
                 final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
             }
             ntsc_framebuffer[target_fb_index] = final_pixel;
