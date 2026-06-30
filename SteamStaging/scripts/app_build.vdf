@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.14 ntsc modes, tooltips"
+  "Desc" "v1.0.14a phase alignment modes, phosphor fix"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
