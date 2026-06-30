@@ -110,7 +110,7 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 // };
 //bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
 const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
-static int ntsc_filter_mode = 0;// ntsc_legacy ? NTSC_MODE_LEGACY : NTSC_MODE_HYBRID;//luma, hybrid, legacy
+static int ntsc_filter_mode = 1;// luma, hybrid, legacy
 
 static int current_aa_selection = 0; // 0 = Crisp Pixels, 1 = Smooth Blending
 const char* aa_modes[] = { "Disabled (Crisp)", "Enabled (Smooth)" };
@@ -376,7 +376,7 @@ void RestoreDefaults() {
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
 	//ntsc_legacy = NTSC_LEGACY_DEFAULT;
-	ntsc_filter_mode = 0;//0=luma-pinned
+	ntsc_filter_mode = 1;//0=luma-pinned, 1=hybrid, 2=legacy
 	current_aa_selection = 0;
 	SDL_ScaleMode scale_mode;
 	if (ntsc_filter_enabled){
@@ -1496,9 +1496,18 @@ void refreshScreen() {
 				ImGui::MenuItem("Toggle Instant Blits", NULL, &(blitter->instant_mode));
 				ImGui::SliderInt("Volume", &AudioCoprocessor::singleton_acp_state->volume, 0, 256);
 				ImGui::Checkbox("Mute", &AudioCoprocessor::singleton_acp_state->isMuted);
-				if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {
+				if (ImGui::Checkbox("Mouse Paddle (Controller Override)", &paddle_emulation_enabled)) {
 					SavePreferences();
 					joysticks->SetHeldButtons(0);//clear bits on change just in case
+				}
+				if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+					ImGui::BeginTooltip();
+					if (paddleDetected > 0) {//paddleDetected is synonymouse with numJoysticks > 0
+						ImGui::TextUnformatted("Forces mouse control over connected gamepads\nUncheck to resume using controller");
+					} else {
+						ImGui::TextUnformatted("Mouse control is already active because no gamepad is connected");
+					}
+					ImGui::EndTooltip();
 				}
 				if (ImGui::BeginMenu("Video Filter Options")) {
 					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
@@ -1649,11 +1658,20 @@ void refreshScreen() {
 			else muteMask &= ~MUTE_SOURCE_MANUAL;
 			AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
 			ImGui::Separator();
-			if (ImGui::Checkbox("Mouse Paddle", &paddle_emulation_enabled)) {//hidden from wrapper mode
+			if (ImGui::Checkbox("Mouse Paddle (Controller Override)", &paddle_emulation_enabled)) {//hidden from wrapper mode
 				SavePreferences();
 				joysticks->SetHeldButtons(0);//clear bits on change just in case
 			}
-			if (ImGui::BeginMenu("Video Filter Options")) {
+			if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
+				ImGui::BeginTooltip();
+				if (paddleDetected > 0) {//paddleDetected is synonymouse with numJoysticks > 0
+					ImGui::TextUnformatted("Forces mouse control over connected gamepads\nUncheck to resume using controller");
+				} else {
+					ImGui::TextUnformatted("Mouse control is already active because no gamepad is connected");
+				}
+				ImGui::EndTooltip();
+			}			
+				if (ImGui::BeginMenu("Video Filter Options")) {
 				if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
 					SDL_ScaleMode scale_mode;
 					if (ntsc_filter_enabled){
