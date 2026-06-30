@@ -1503,7 +1503,8 @@ void refreshScreen() {
 				if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
 					ImGui::BeginTooltip();
 					if (paddleDetected > 0) {//paddleDetected is synonymouse with numJoysticks > 0
-						ImGui::TextUnformatted("Forces mouse control over connected gamepads\nUncheck to resume using controller");
+						ImGui::TextUnformatted("Forces mouse control over connected gamepads");
+						if (paddle_emulation_enabled)ImGui::TextUnformatted("Uncheck to resume using controller");
 					} else {
 						ImGui::TextUnformatted("Mouse control is already active because no gamepad is connected");
 					}
@@ -1665,7 +1666,8 @@ void refreshScreen() {
 			if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayNormal)) {
 				ImGui::BeginTooltip();
 				if (paddleDetected > 0) {//paddleDetected is synonymouse with numJoysticks > 0
-					ImGui::TextUnformatted("Forces mouse control over connected gamepads\nUncheck to resume using controller");
+					ImGui::TextUnformatted("Forces mouse control over connected gamepads");
+						if (paddle_emulation_enabled)ImGui::TextUnformatted("Uncheck to resume using controller");
 				} else {
 					ImGui::TextUnformatted("Mouse control is already active because no gamepad is connected");
 				}
