@@ -1,0 +1,12 @@
+[2026-06-29 16:17:14]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
+[2026-06-29 16:17:14]: Building file listing for depot 1087092 ...
+[2026-06-29 16:17:14]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
+[2026-06-29 16:17:14]: Found 3 files (7 MB) for depot 1087092
+[2026-06-29 16:17:14]: Building depot 1087092, baseline manifest 1576257476768328662 (3 files)
+[2026-06-29 16:17:14]: Found 8 new chunks ( 8 used previously ) for depot 1087092, took 0 minutes, 0 seconds
+[2026-06-29 16:17:14]: Changes to baseline manifest 1576257476768328662 :
+[2026-06-29 16:17:14]: Changed: "BrickGame" 4049 KB size, 4049 KB changed 
+[2026-06-29 16:17:14]: Summary: 0 files added (0 bytes), 1 files changed (3.95 MB), 0 files removed (0 bytes)
+[2026-06-29 16:17:15]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 11538646736612056643, 914 bytes).
+[2026-06-29 16:17:15]: Uploading 4 out of 4 missing chunks.
+[2026-06-29 16:17:17]: Success! New manifestID 6848086803703761448 created and 4 new chunks uploaded.
