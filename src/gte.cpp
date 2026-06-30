@@ -103,6 +103,8 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 #define NTSC_MODE_LUMA_PINNED 0
 #define NTSC_MODE_TRUE_HYBRID 1
 #define NTSC_MODE_LEGACY 2
+#define NTSC_FILTER_MODE_DEFAULT 0
+
 // enum NTSCFilterMode {
 //     NTSC_MODE_LUMA_PINNED = 0,  // The new desaturated, mathematically bounded look
 //     NTSC_MODE_TRUE_HYBRID = 1,  // Sharp pixels + raw chroma + forced bloom
@@ -110,7 +112,7 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 // };
 //bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
 const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
-static int ntsc_filter_mode = 1;// luma, hybrid, legacy
+static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
 
 #define NTSC_TIMING_GAMETANK 0
 #define NTSC_TIMING_NES 1
@@ -384,7 +386,7 @@ void RestoreDefaults() {
 	ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;
 	ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;//float
 	//ntsc_legacy = NTSC_LEGACY_DEFAULT;
-	ntsc_filter_mode = 1;//0=luma-pinned, 1=hybrid, 2=legacy
+	ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;//0=luma-pinned, 1=hybrid, 2=legacy
 	current_aa_selection = 0;
 	ntsc_phase_alignment_mode = 0;
 
