@@ -1176,8 +1176,10 @@ void UpdateNTSCTexture() {
     int pitch_pixels = vRAM_Surface->pitch / 4;
 
     static float frame_phase_offset = 0.0f;
-    frame_phase_offset = fmodf(frame_phase_offset + 4.0f, 12.0f); 
-    
+    //frame_phase_offset = fmodf(frame_phase_offset + 4.0f, 12.0f); //NES
+    frame_phase_offset = fmodf(frame_phase_offset + 6.0f, 12.0f); //GT 180 degree flip
+	//frame_phase_offset = fmodf(frame_phase_offset + 3.0f, 12.0f); //GT comfort 90 degree rotation
+
     static std::vector<float> composite_signal;
     if (composite_signal.size() != (size_t)(NTSC_WIDTH * 4)) {
         composite_signal.resize(NTSC_WIDTH * 4, 0.0f);
@@ -1185,11 +1187,11 @@ void UpdateNTSCTexture() {
 
     const float inv_scale = 1.0f / SCALE_X; // Precalculate reciprocal to swap division for multiplication
     const float inv_white = 1.0f / 1.200f;  // Precalculate white point scale
+	int scanline_phase_int = (int)frame_phase_offset; //GT Style
 
     for (int y = 0; y < GT_HEIGHT; ++y) {
         int actual_y = current_y_offset + y;
-        int scanline_phase_int = (int)fmodf(frame_phase_offset + (y * 4.0f), 12.0f); 
-
+        //int scanline_phase_int = (int)fmodf(frame_phase_offset + (y * 4.0f), 12.0f); //NES style
         const int SAMPLES_PER_PIXEL = 4; 
         const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
 
