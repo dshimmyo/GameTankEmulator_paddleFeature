@@ -17,3 +17,4 @@ dist
 !SteamStaging/content/mac_depot/*
 
 BrickGame*/emulator_prefs.cfg
+*.DS_Store
