@@ -117,11 +117,10 @@ ifeq ($(OS), Darwin)
         endif
         COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
         
-        # Tell the compiler and linker to build slices for both architectures
-        COMPILER_FLAGS += -arch x86_64 -arch arm64
+        # Target both architectures AND set the minimum OS support to Catalina
+        COMPILER_FLAGS += -arch x86_64 -arch arm64 -mmacosx-version-min=10.15
         
-        # Bypass host sdl2-config libs to prevent single-architecture linking errors.
-        # Points directly to your local universal dylib and sets the runtime path.
+        # Bypass host sdl2-config libs
         LINKER_FLAGS = -L. -lSDL2-2.0.0 -Wl,-rpath,@executable_path/
     endif
 endif
