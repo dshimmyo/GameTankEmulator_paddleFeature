@@ -1,0 +1,10 @@
+[2026-06-26 15:44:04]: Starting build for depot 4893252, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamDemoStaging/content/mac_depot/", build flags 0x0
+[2026-06-26 15:44:04]: Building file listing for depot 4893252 ...
+[2026-06-26 15:44:04]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamDemoStaging/content/mac_depot * -> .
+[2026-06-26 15:44:04]: Found 3 files (7 MB) for depot 4893252
+[2026-06-26 15:44:05]: Building depot 4893252, baseline manifest 93335515333581214 (3 files)
+[2026-06-26 15:44:05]: Found 8 new chunks ( 8 used previously ) for depot 4893252, took 0 minutes, 0 seconds
+[2026-06-26 15:44:05]: Changes to baseline manifest 93335515333581214 :
+[2026-06-26 15:44:05]: Summary: 0 files added (0 bytes), 0 files changed (0 bytes), 0 files removed (0 bytes)
+[2026-06-26 15:44:05]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 14276707159674159335, 918 bytes).
+[2026-06-26 15:44:06]: Success! Previous manifestID 93335515333581214 reused, no chunks uploaded.
