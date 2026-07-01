@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.14a phase alignment modes, phosphor fix"
+  "Desc" "v1.0.14b default filter luma-pinned"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
