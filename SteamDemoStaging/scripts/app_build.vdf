@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.14 new demo roms"
+  "Desc" "v1.0.14c mac universal package"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
