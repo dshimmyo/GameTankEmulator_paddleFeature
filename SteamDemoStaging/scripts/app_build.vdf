@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.14c mac universal package"
+  "Desc" "v1.0.15 big picture mode"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
