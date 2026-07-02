@@ -1,0 +1,10 @@
+[2026-07-01 12:26:15]: Starting build for depot 4893251, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamDemoStaging/content/windows_depot/", build flags 0x0
+[2026-07-01 12:26:15]: Building file listing for depot 4893251 ...
+[2026-07-01 12:26:15]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamDemoStaging/content/windows_depot * -> .
+[2026-07-01 12:26:15]: Found 3 files (12 MB) for depot 4893251
+[2026-07-01 12:26:16]: Building depot 4893251, baseline manifest 6284848199507090437 (3 files)
+[2026-07-01 12:26:16]: Found 13 new chunks ( 13 used previously ) for depot 4893251, took 0 minutes, 0 seconds
+[2026-07-01 12:26:16]: Changes to baseline manifest 6284848199507090437 :
+[2026-07-01 12:26:16]: Summary: 0 files added (0 bytes), 0 files changed (0 bytes), 0 files removed (0 bytes)
+[2026-07-01 12:26:16]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 2732012535734535453, 1062 bytes).
+[2026-07-01 12:26:17]: Success! Previous manifestID 6284848199507090437 reused, no chunks uploaded.

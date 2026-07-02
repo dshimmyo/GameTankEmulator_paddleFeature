@@ -109,14 +109,20 @@ else #BSD/Linux
 	LINKER_FLAGS = `sdl2-config --libs`
 endif
 
-# Add macOS SDK headers if on Darwin
+# Add macOS SDK headers and Universal Binary configurations if on Darwin
 ifeq ($(OS), Darwin)
-	ifneq ($(OS), wasm)
-		ifeq ($(WRAPPERMODE), yes)
-			COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
-		endif
-    	COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
-	endif
+    ifneq ($(OS), wasm)
+        ifeq ($(WRAPPERMODE), yes)
+            COMPILER_FLAGS += -D DEFAULT_ROM_PATH='"gamedata.gtr"' -D WRAPPER_MODE=1
+        endif
+        COMPILER_FLAGS += -I$(shell xcrun --show-sdk-path)/usr/include/c++/v1
+        
+        # Target both architectures AND set the minimum OS support to Catalina
+        COMPILER_FLAGS += -arch x86_64 -arch arm64 -mmacosx-version-min=10.15
+        
+        # Bypass host sdl2-config libs
+        LINKER_FLAGS = -L. -lSDL2-2.0.0 -Wl,-rpath,@executable_path/
+    endif
 endif
 
 DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_FIX
@@ -126,6 +132,11 @@ DEFINES += -D CPU_6502_STATIC -D CPU_6502_USE_LOCAL_HEADER -D CMOS_INDIRECT_JMP_
 all: bin dist
 
 bin: $(OUT_DIR)/$(BIN_NAME)
+ifeq ($(OS), Darwin)
+	cp libSDL2-2.0.0.dylib $(OUT_DIR)/
+	codesign --force --deep --sign - $(OUT_DIR)/libSDL2-2.0.0.dylib
+	install_name_tool -change @rpath/SDL2.framework/Versions/A/SDL2 @loader_path/libSDL2-2.0.0.dylib $(OUT_DIR)/$(BIN_NAME) 
+endif
 
 dist: $(OUT_DIR)/$(ZIP_NAME)
 	@mkdir -p $(DIST_DIR)
