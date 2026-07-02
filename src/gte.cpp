@@ -105,12 +105,6 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 #define NTSC_MODE_LEGACY 2
 #define NTSC_FILTER_MODE_DEFAULT 0
 
-// enum NTSCFilterMode {
-//     NTSC_MODE_LUMA_PINNED = 0,  // The new desaturated, mathematically bounded look
-//     NTSC_MODE_TRUE_HYBRID = 1,  // Sharp pixels + raw chroma + forced bloom
-//     NTSC_MODE_LEGACY      = 2   // Full analog signal simulation (rounded edges)
-// };
-//bool ntsc_legacy = NTSC_LEGACY_DEFAULT;
 const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
 static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
 
@@ -1104,6 +1098,15 @@ void toggleControllerOptionsWindow() {
 }
 
 #endif
+
+void AdjustDisplayForSteam(SDL_Window* window) { //big picture mode
+    const char* steamEnv = std::getenv("SteamTenfoot");
+    
+    if (steamEnv && std::string(steamEnv) == "1") {
+		SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		isFullScreen = true;
+    }
+}
 
 void toggleFullScreen() {
 	if(isFullScreen) {
@@ -2253,6 +2256,7 @@ int main(int argC, char* argV[]) {
 		SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
 		SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
 	}
+	AdjustDisplayForSteam(mainWindow);
 #ifndef WASM_BUILD
 	main_imgui_ctx = ImGui::CreateContext();
 	main_implot_ctx = ImPlot::CreateContext();
