@@ -1,0 +1,13 @@
+"AppBuild"
+{
+  "AppID" "4893250"                 
+  "Desc" "v1.0.15 big picture mode"
+  "ContentRoot" "../content/"
+  "BuildOutput" "../output/"
+
+  "Depots"
+  {
+    "4893251" "depot_4893251.vdf" 
+    "4893252" "depot_4893252.vdf"
+  }
+}
