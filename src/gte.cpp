@@ -626,10 +626,8 @@ void MemoryWrite(uint16_t address, uint8_t value) {
     if (address == 0x2009) {
 #ifndef WASM_BUILD
         if (value == SIGNAL_PADDLE_MODE) {
-            //paddle_emulation_enabled = true;//user set only
 			romRequestedPaddle = true;
         } else if (value == 0x00) {
-            //paddle_emulation_enabled = false;//user set only
 			romRequestedPaddle = false;
         }
 #endif
@@ -2170,10 +2168,12 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 		}
 		cpu_core->Reset();
 		cartridge_state.write_mode = false;
+		joysticks->SetHeldButtons(0);
 		joysticks->Reset();
 		resetQueued = 0;
-		joysticks->SetHeldButtons(0);
 		currentPaddleRawValue = 0;
+		romRequestedPaddle = false;
+
 #ifndef WASM_BUILD
 		//paddle_emulation_enabled = false;//set by user as an override
 		//paddleDetected = false; //reset shouldn't affect this
