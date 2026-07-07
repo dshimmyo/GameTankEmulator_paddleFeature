@@ -51,6 +51,58 @@
         width: 100%;
       }
 
+      .dimmed {
+          opacity: 0.3;
+          transition: opacity 0.2s ease; /* Makes the fade feel smooth */
+      }
+
+    /* THE HUD PILL: Hidden by default (Landscape/Desktop) */
+      #paddle-controls-container {
+          display: none; 
+          position: fixed;
+          bottom: 25px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 3000;
+          flex-direction: row;
+          gap: 12px;
+          align-items: center;
+          pointer-events: none; /* The container itself ignores clicks */
+      }
+
+      /* The Main Toggle Button */
+      #paddle-fab {
+          background: #222;
+          color: #0f0;
+          border: 3px solid #0f0;
+          padding: 12px 20px;
+          font-family: monospace;
+          font-size: 18px;
+          font-weight: bold;
+          border-radius: 40px;
+          cursor: pointer;
+          box-shadow: 0px 4px 15px rgba(0,0,0,0.8);
+          white-space: nowrap;
+          pointer-events: auto; /* The buttons inside specifically accept clicks */
+      }
+
+      /* The Arcade Buttons inside the HUD */
+      .paddle-sub-btn {
+          display: none; 
+          background: #444;
+          color: #fff;
+          border: 2px solid #888;
+          border-radius: 50%;
+          width: 65px;
+          height: 65px;
+          font-family: monospace;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+          pointer-events: auto; /* The buttons inside specifically accept clicks */
+      }
+      .paddle-sub-btn.red-btn { background: #444; border-color: #fff; }
+
       select {
           font-size: 50px;
         }
@@ -85,8 +137,10 @@
         .landscapeOnly {
           display:none;
         }
-      }
 
+        #paddle-controls-container { display: flex; } /* Show HUD on mobile */
+      }
+      
     </style>
   </head>
   <body>
@@ -104,166 +158,56 @@
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1 width="512" height="512"></canvas>
     </div>
     <hr/>
+    <div id="paddle-controls-container">
+        <button class="paddle-sub-btn" 
+                onclick="sendButton(32, true); setTimeout(() => sendButton(32, false), 100);">
+                START
+        </button>
+                
+        <button id="paddle-fab" onclick="togglePaddleMode()">PADDLE: OFF</button>
+        
+        <button class="paddle-sub-btn red-btn" 
+                onclick="sendButton(16, true); setTimeout(() => sendButton(16, false), 100);">
+                A
+        </button>
+    </div>
     <div class="emscripten landscapeOnly">
-      <input id="RomFileInput" type="file" onchange="useFileInput(this);" style="display: none"/>
-      <input type="button" id="loadimg" value="Open ROM" onclick="document.getElementById('RomFileInput').click();" />
-      <input type="button" id="downloadROM" value="Download ROM" onclick="goDownloadRom();"/>
-
-
-      <div class="editonly">
-        <form action="../../games/api/update.php" method="POST">
-            <input type="hidden" id="gameId" name="id">
-    
-            <label for="title">Title:</label>
-            <input type="text" id="title" name="title" required>
-    
-            <label for="description">Description:</label>
-            <textarea id="description" name="description"></textarea>
-    
-            <label>Visibility:</label>
-            <div>
-                <input type="radio" id="hidden" name="visibility" value="0">
-                <label for="hidden">Hidden</label>
-                <input type="radio" id="published" name="visibility" value="1">
-                <label for="published">Published</label>
-            </div>
-    
-            <button type="submit">Submit</button>
-        </form>
-
-        <button id="screenshotUpload" onclick=>Update screenshot</button>
-
-        <input id="RomFileInput2" type="file" onchange="useFileInput2(this);" style="display: none"/>
-        <input type="button" id="loadimg2" value="Upload new ROM" onclick="document.getElementById('RomFileInput2').click();" />
-    
-        <script>
-          if(typeof GAMEINFO != "undefined") {
-            // Populate form fields with GAMEINFO values
-            document.getElementById('gameId').value = GAMEINFO.id;
-            document.getElementById('title').value = GAMEINFO.title;
-            document.getElementById('description').value = GAMEINFO.description;
-            document.getElementById(GAMEINFO.visibility === 1 ? 'published' : 'hidden').checked = true;
-          }
-
-          async function captureAndUploadBMP(presignedUrl) {
-            try {
-
-                // Convert to PNG
-                let canvas = document.getElementById('canvas');
-                let tempCanvas = document.createElement('canvas');
-                tempCanvas.width = canvas.width;
-                tempCanvas.height = canvas.height;
-                let ctx = tempCanvas.getContext("2d");
-                ctx.drawImage(canvas, 0, 0);
-
-
-                tempCanvas.toBlob(async (pngBlob) => {
-                    if (!pngBlob) {
-                        console.error("PNG conversion failed");
-                        return;
-                    }
-
-                    // Upload PNG using fetch
-                    let response = await fetch(presignedUrl, {
-                        method: "PUT",
-                        body: pngBlob,
-                        mode: 'cors',
-                        headers: {
-                          "Content-Type": "image/png",
-                          "x-amz-acl": "public-read"
-                        },
-                    });
-
-                    if (response.ok) {
-                        alert("Upload successful!");
-                    } else {
-                        console.error("Upload failed", await response.text());
-                    }
-                }, "image/png");
-            } catch (error) {
-                console.error("Error processing BMP file:", error);
-            }
-        }
-
-
-          async function captureScreenshotAndUpload() {
-            if(typeof GAMEINFO != "undefined") {
-              const response = await fetch('../../games/api/screenshot.php', {
-                method: "POST",
-                body: new URLSearchParams({
-                  id: GAMEINFO.id
-                })
-              });
-              const json = await response.json();
-              const signedURL = json['url'];
-              await captureAndUploadBMP(signedURL);
-            }
-          }
-
-          document.getElementById('screenshotUpload').onclick = async() => {
-            await captureScreenshotAndUpload();
-          };
-
-          async function useFileInput2(fileInput) {
-          console.log("useFileInput called");
-          if (fileInput.files.length == 0)
-              return;
-          var file = fileInput.files[0];
-          console.log("loading file " + file.name);
-          var fr = new FileReader();
-
-          async function doUpload () {
-              var data = new Uint8Array(fr.result);
-              
-              const response = await fetch('../../games/api/replacerom.php', {
-                method: "POST",
-                body: new URLSearchParams({
-                  id: GAMEINFO.id
-                })
-              });
-              const json = await response.json();
-              const signedURL = json['url'];
-              
-              let romresponse = await fetch(signedURL, {
-                        method: "PUT",
-                        body: data,
-                        mode: 'cors',
-                        headers: {
-                          "Content-Type": "binary/octet-stream",
-                          "x-amz-acl": "public-read"
-                        },
-                    });
-
-                    if (romresponse.ok) {
-                        alert("Upload successful!");
-                        window.location = "https://gametank.zone/emulator/web?game=" + GAMEINFO.id;
-                    } else {
-                        console.error("Upload failed", await response.text());
-                    }
-
-              fileInput.value = '';
-          };
-
-          fr.onload = () => {
-            doUpload();
-          }
-          fr.readAsArrayBuffer(file);
-      }
-        </script>
-
-        
-        
+      <div style="padding: 10px; color: white; background: rgba(0,0,0,0.5); display: inline-block;">
+          <label for="paddleToggle" style="cursor: pointer; display: flex; align-items: center;">
+              <input type="checkbox" id="paddleToggle" 
+               onchange="window.paddleModeEnabled = this.checked; Module.ccall('SetPaddleMode', null, ['boolean'], [this.checked])" 
+               style="margin-right: 10px;">
+              <span style="font-family: sans-serif; font-size: 14px;">Enable Paddle Mode (Mouse)</span>
+          </label>
       </div>
-
+      <div class="download-section">
+          <p></p>
+          <a href="brickgame.gtr" download="brickgame.gtr">
+              <button type="button">Download ROM (brickgame.gtr)</button>
+          </a>
+      </div>
     </div>
     
     <hr/>
     <div class="landscapeOnly">
 
       <span id="description-span"></span>
-      
+      <h2>Quick Start:</h2>
+      <ul>
+        <li>Press Z (A) or X (B) to select controller</li>
+        <li>Paddle Mode:</li>
+        <li>- click in the screen to capture the mouse</li>
+        <li>- press escape to get the mouse cursor back</li>
+        <li>Gamepad</li>
+        <li>use arrow keys to move left and right</li>
+      </ul>
       <h2>Player 1 Controls:</h2>
       <ul>
+        <li>Paddle (Mouse) Mode:</li>
+        <li>Z key = A Button</li>
+        <li>Enter = Start Button</li>
+        <li>Mouse left/right = Paddle left/right</li>
+        <li>Gamepad Mode:</li>
         <li>Arrow Keys = Directional Buttons</li>
         <li>Enter = Start</li>
         <li>Z, X, C = A, B, C</li>
@@ -288,6 +232,125 @@
     </div>
 
     <script type='text/javascript'>
+      const canvas = document.getElementById('canvas');
+
+      window.paddleModeEnabled = false;
+      var touchedMask = 0; 
+      var touchIds = [];
+
+      window.sendButton = function(mask, isPressed, event) {
+          // 1. Prevent the button from 'stealing' the interaction
+          if (event) {
+              event.preventDefault();
+              event.stopPropagation();
+          }
+
+          if (isPressed) { 
+              touchedMask |= mask; 
+          } else { 
+              touchedMask &= ~mask; 
+          }
+
+          if (typeof Module.ccall !== 'undefined') {
+              Module.ccall('SetButtons', null, ["int"], [touchedMask]);
+              
+              const canvas = document.getElementById('canvas') || document.querySelector('canvas');
+              if (canvas) canvas.focus();
+          }
+      };
+
+        function togglePaddleMode() {
+            window.paddleModeEnabled = !window.paddleModeEnabled;
+            const btn = document.getElementById('paddle-fab');
+            const img = document.getElementById('mobileInputImg');
+
+            // Find all the sub-buttons (START and A)
+            const subBtns = document.querySelectorAll('.paddle-sub-btn');
+            
+            if (typeof Module.ccall !== 'undefined') {
+                Module.ccall('SetPaddleMode', null, ['boolean'], [window.paddleModeEnabled]);
+            }
+
+            btn.innerText = "PADDLE: " + (window.paddleModeEnabled ? "ON" : "OFF");
+            btn.style.borderColor = window.paddleModeEnabled ? "#0f0" : "#888";
+            
+            // Toggle visibility of the extra buttons
+            subBtns.forEach(subBtn => {
+                subBtn.style.display = window.paddleModeEnabled ? "block" : "none";
+            });
+
+            // Toggle Dimming of the background gamepad
+            if (window.paddleModeEnabled) {
+                img.classList.add('dimmed');
+            } else {
+                img.classList.remove('dimmed');
+            }
+        }
+
+        canvas.addEventListener('mousemove', function(e) {
+            if (typeof Module.ccall !== 'undefined' && window.paddleModeEnabled) {
+                
+                if (window.isTouchMode) {
+                    // --- ABSOLUTE MODE (Existing logic) ---
+                    const rect = canvas.getBoundingClientRect();
+                    const margin = rect.width / 6;
+                    let x = (e.clientX - (rect.left + margin)) / (rect.width - margin*2);
+                    let paddleVal = Math.min(Math.max(x, 0), 1) * 255;
+                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+                } else {
+                    // --- DELTA MODE (New logic) ---
+                    // movementX is the raw change provided by the browser
+                    const dx = e.movementX || e.mozMovementX || 0;
+                    
+                    if (dx !== 0) {
+                        // We call your Delta function in C++ instead of setting the absolute value
+                        Module.ccall('UpdatePaddleFromMouseJS', null, ['number', 'number'], [0, dx]);
+                    }
+                }
+            }
+        });
+
+        // GLOBAL TOUCH TRACKING FOR PADDLE
+        canvas.addEventListener('touchmove', function(e) {
+            if (!window.paddleModeEnabled) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+
+            // We check if we are on the game screen to prevent scrolling
+            const isInsideCanvas = (
+              touch.clientX >= rect.left &&
+              touch.clientX <= rect.right &&
+              touch.clientY >= rect.top &&
+              touch.clientY <= rect.bottom
+            );
+            const margin = rect.width / 6;
+            if (isInsideCanvas) {
+                e.preventDefault();
+                let x = (touch.clientX - (rect.left + margin)) / (rect.width - margin*2);
+                let paddleVal = Math.max(0, Math.min(1, x)) * 255;
+                Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('mousedown', function(e) {
+            if (window.paddleModeEnabled && !window.isTouchMode) {
+                canvas.requestPointerLock();
+                // Force SDL to update its internal state
+                if (Module._SDL_SetRelativeMouseMode) {
+                    Module._SDL_SetRelativeMouseMode(1); // 1 is TRUE
+                }
+            }
+        });
+
+        // Listen for the lock being dropped (like when hitting ESC)
+        document.addEventListener('pointerlockchange', function() {
+            if (document.pointerLockElement !== canvas) {
+                console.log("Pointer Lock Lost");
+                // You could call a C++ function here to let the emulator know
+                // e.g., Module._HandlePointerLockLost();
+            }
+        }, false);
+      
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');
@@ -466,6 +529,35 @@
       }
 
       Module.onRuntimeInitialized = function() {
+
+        let lastBit = 0; // Track the bit pressed by the image
+
+        function handleGamepadInput(e, isPressed) {
+            if (window.paddleModeEnabled) return;
+            e.preventDefault();
+
+            const rect = inputScreen.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            const inputscale = 4 / rect.height;
+            const top = 3 - Math.floor(inputscale * (rect.bottom - clientY));
+            const lef = Math.floor(inputscale * (clientX - rect.left));
+
+            if (top >= 0 && top < 4 && lef >= 0 && lef < 7) {
+                if (isPressed) {
+                    lastBit = buttonGrid[top][lef]; // Remember what we pressed
+                    touchedMask |= lastBit;
+                } else {
+                    touchedMask &= ~lastBit; // Clear the bit we actually pressed
+                    lastBit = 0;
+                }
+                
+                console.log(`[GamepadImage] Final Mask Sent: ${touchedMask}`);
+                Module.ccall('SetButtons', null, ["int"], [touchedMask]);
+            }
+        }
+
         document.addEventListener("visibilitychange", () => {
           if (document.hidden) {
             Module.ccall('PauseEmulation');
@@ -493,27 +585,17 @@
                         [0, 0b0000010000000100, 0, 0, 0, 0b0000000000010000, 0],
                         [0,0,0,0,0,0,0]];
         var inputScreen = document.getElementById("mobileInputImg");
-        var touchIds = [];
-        var touchedMask = 0;
-        inputScreen.ontouchstart = function(ev) {
-          ev.preventDefault();
-          var inputscale = 4 / ev.targetTouches[0].target.clientHeight;
-          for(var i = 0; i < ev.targetTouches.length; i++) {
-            var top = 3 - Math.floor(inputscale * (document.body.clientHeight - ev.targetTouches[i].clientY));
-            var lef = Math.floor(inputscale * ev.targetTouches[i].clientX);
-            touchIds[ev.targetTouches[i].identifier] = buttonGrid[top][lef];
-            touchedMask |= buttonGrid[top][lef];
-            Module.ccall('SetButtons', null, ["int"], [touchedMask]);
-          }
-        }
+        touchedMask = 0;
+        
+        // Map touch and mouse event types to the same logic
+        inputScreen.onmousedown = (e) => handleGamepadInput(e, true);
+        window.onmouseup = (e) => handleGamepadInput(e, false); // window level so release works if you drag off
 
-        inputScreen.ontouchend = function(ev) {
-          ev.preventDefault();
-          for(var i = 0; i < ev.changedTouches.length; i++) {
-            touchedMask &= ~touchIds[ev.changedTouches[i].identifier];
-          }
-          Module.ccall('SetButtons', null, ["int"], [touchedMask]);
-        }
+        inputScreen.ontouchstart = (e) => handleGamepadInput(e, true);
+        inputScreen.ontouchend = (e) => handleGamepadInput(e, false);
+      // In your JS initialization
+      const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      Module._SetPaddleTouchMode(isTouch);
       }
 
       if(typeof GAMEINFO != "undefined") {

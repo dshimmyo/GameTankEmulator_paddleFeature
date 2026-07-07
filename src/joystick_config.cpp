@@ -279,3 +279,6 @@ void load_joystick_defaults(std::vector<InputBinding> &bindings) {
 	b.host_input.joy_button = SDL_CONTROLLER_BUTTON_BACK;
 	bindings.emplace_back(b);
 };
+
+
+
