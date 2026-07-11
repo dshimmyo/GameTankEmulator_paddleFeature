@@ -1471,31 +1471,25 @@ void refreshScreen() {
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
     // // Fix: Read from the edge of the new upscaled bounds (255 instead of 127)
-    // src.x = (GT_WIDTH * ntsc_res_scale) - 1;
-    // src.w = 1;
-    // dest.w = (int)(main_frame_w * 86.0 / 512.0);
-    
-    // // left overscan bar
-    // dest.x -= dest.w;
-    // SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
-
-    // // right overscan bar
-    // dest.x += dest.w + main_frame_w;
-    // SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
-
-	// Set draw color to opaque black for the side bars
-    SDL_SetRenderDrawColor(mainRenderer, 0, 0, 0, 255);
-
-    // Calculate width of the overscan bar area
+    src.x = (GT_WIDTH * ntsc_res_scale) - 1;
+    src.w = 1;
     dest.w = (int)(main_frame_w * 86.0 / 512.0);
     
-    // Left overscan bar
+    // left overscan bar
     dest.x -= dest.w;
-    SDL_RenderFillRect(mainRenderer, &dest);
+    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
-    // Right overscan bar
+	if (ntsc_filter_enabled){
+		SDL_SetRenderDrawColor(mainRenderer, 13, 14, 10, 192);//255);//26, 27, 19
+		SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND);
+		SDL_RenderFillRect(mainRenderer, &dest);
+	}
+    // right overscan bar
     dest.x += dest.w + main_frame_w;
-    SDL_RenderFillRect(mainRenderer, &dest);
+    SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
+	if (ntsc_filter_enabled){
+		SDL_RenderFillRect(mainRenderer, &dest);
+	}
 
 #if !defined(WASM_BUILD)
 	ImGui::SetCurrentContext(main_imgui_ctx);
