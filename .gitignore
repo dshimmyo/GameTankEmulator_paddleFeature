@@ -12,6 +12,8 @@ dist
 *.code-workspace
 !BrickGameWin
 !BrickGameDemoWin
+!BrickGameWin/gamedata.gtr
+!BrickGameDemoWin/gamedata.gtr
 !BrickGameWin/*.exe
 !BrickGameDemoWin/*.exe
 !BrickGameWin/*.dll
@@ -20,5 +22,6 @@ dist
 !SteamStaging/content/mac_depot/*
 !SteamDemoStaging/content/windows_depot/*
 !SteamDemoStaging/content/mac_depot/*
-BrickGame*/emulator_prefs.cfg
+!*/gamedata.gtr
+*/emulator_prefs.cfg
 *.DS_Store
