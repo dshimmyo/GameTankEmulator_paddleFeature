@@ -103,7 +103,7 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 #define NTSC_MODE_LUMA_PINNED 0
 #define NTSC_MODE_TRUE_HYBRID 1
 #define NTSC_MODE_LEGACY 2
-#define NTSC_FILTER_MODE_DEFAULT 1
+#define NTSC_FILTER_MODE_DEFAULT 0
 
 const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
 static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
