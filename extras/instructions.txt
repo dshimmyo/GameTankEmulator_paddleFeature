@@ -1,0 +1,42 @@
+to run a mac wrapper build:
+make clean && make WRAPPERMODE=yes
+
+copy GameTankEmulator into BrickGameMac/BrickGame
+copy rom into BrickGameMac/roms/brickgame.gtr
+run otool -L BrickGame
+
+//to see if it is dynamically linked
+//
+//dshimmyo@DKS-MBP-M1 GameTankEmulator % otool -L BrickGameMac/BrickGame
+//BrickGameMac/BrickGame:
+//        /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib (compatibility version 3201.0.0, current version 3201.10.0)
+//        /usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2000.67.0)
+//        /usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)
+//
+//the absolute path confirms that it's dynamically linking the local copy of libSDL2.dylib
+
+copy the lib into the release dir:
+cp /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib BrickGameMac/
+
+//Run another command to reroute the link:
+//Run install_name_tool to tell the BrickGame binary to look for that file locally using 
+//@loader_path (which tells macOS to search the exact same directory where the executable file sits):
+
+install_name_tool -change /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib @loader_path/libSDL2-2.0.0.dylib BrickGameMac/BrickGame
+
+//Verify the change:
+otool -L BrickGameMac/BrickGame
+
+The output should now show @loader_path/libSDL2-2.0.0.dylib instead of the Homebrew path. 
+Once it shows that, your BrickGameMac folder is completely self-contained and ready to be uploaded as your Mac depot via SteamCMD.
+
+
+/////////////////////////
+WINDOWS BUILD
+/////////////////////////
+
+copy BrickGame.exe
+copy dll
+copy gamedata.gtr
+- done!
+
