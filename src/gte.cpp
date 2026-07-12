@@ -108,10 +108,10 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
 static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
 
-#define NTSC_TIMING_GAMETANK 0
-#define NTSC_TIMING_NES 1
+// #define NTSC_TIMING_GAMETANK 0
+// #define NTSC_TIMING_NES 1
 
-static int ntsc_phase_alignment_mode = NTSC_TIMING_GAMETANK;
+//static int ntsc_phase_alignment_mode = NTSC_TIMING_GAMETANK;
 const char* timing_mode_names[] = { "In-Phase / Locked (GT)", "Progressive Shift (NES)" };
 
 static int current_aa_selection = 0; // 0 = Crisp Pixels, 1 = Smooth Blending
@@ -367,7 +367,7 @@ void SavePreferences() {
 		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
 		file << "current_aa_selection=" << (current_aa_selection) << "\n";
 		file << "ntsc_filter_mode=" << (ntsc_filter_mode) << "\n";
-		file << "ntsc_phase_alignment_mode=" << (ntsc_phase_alignment_mode) << "\n";
+		//file << "ntsc_phase_alignment_mode=" << (ntsc_phase_alignment_mode) << "\n";
 		
         file.close();
     }
@@ -382,7 +382,7 @@ void RestoreDefaults() {
 	//ntsc_legacy = NTSC_LEGACY_DEFAULT;
 	ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;//0=luma-pinned, 1=hybrid, 2=legacy
 	current_aa_selection = 0;
-	ntsc_phase_alignment_mode = 0;
+	//ntsc_phase_alignment_mode = 0;
 
 
 	SDL_ScaleMode scale_mode;
@@ -428,8 +428,8 @@ void LoadPreferences() {
     				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
             	} else if (key == "ntsc_filter_mode"){
 					ntsc_filter_mode = val;
-				} else if (key == "ntsc_phase_alignment_mode"){
-					ntsc_phase_alignment_mode = val;
+				// } else if (key == "ntsc_phase_alignment_mode"){
+				// 	ntsc_phase_alignment_mode = val;
 				} else if (key == "current_aa_selection"){
 					current_aa_selection = val;
 					SDL_ScaleMode scale_mode;
@@ -1213,10 +1213,10 @@ void UpdateNTSCTexture() {
 
     for (int y = 0; y < GT_HEIGHT; ++y) {
         int actual_y = current_y_offset + y;
-		if (ntsc_phase_alignment_mode == NTSC_TIMING_NES) {
+		/*if (ntsc_phase_alignment_mode == NTSC_TIMING_NES) {
             // NES path: Advance phase by 4 samples (120 degrees) per scanline
             scanline_phase_int = (int)fmodf(frame_phase_offset + (y * 4.0f), 12.0f); 
-        }
+        }*/
 
         const int SAMPLES_PER_PIXEL = 4; 
         const int TOTAL_SAMPLES = NTSC_WIDTH * SAMPLES_PER_PIXEL;
@@ -1568,7 +1568,7 @@ void refreshScreen() {
 						//ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
 						SavePreferences();
 					}
-					ImGui::Combo("Phase Alignment", &ntsc_phase_alignment_mode, timing_mode_names, IM_ARRAYSIZE(timing_mode_names));
+					// ImGui::Combo("Phase Alignment", &ntsc_phase_alignment_mode, timing_mode_names, IM_ARRAYSIZE(timing_mode_names));
 					if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
 						SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;	
 						
@@ -1732,7 +1732,7 @@ void refreshScreen() {
 					//ntsc_legacy = (ntsc_filter_mode == NTSC_MODE_LEGACY);
 					SavePreferences();
 				}
-				ImGui::Combo("Phase Alignment", &ntsc_phase_alignment_mode, timing_mode_names, IM_ARRAYSIZE(timing_mode_names));
+				// ImGui::Combo("Phase Alignment", &ntsc_phase_alignment_mode, timing_mode_names, IM_ARRAYSIZE(timing_mode_names));
 				if (ImGui::Combo("Texture Smoothing", &current_aa_selection, aa_modes, IM_ARRAYSIZE(aa_modes))) {
 					SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;	
 					
