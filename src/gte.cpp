@@ -1487,8 +1487,8 @@ void refreshScreen() {
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
 	if (ntsc_filter_enabled){
-		SDL_SetRenderDrawColor(mainRenderer, 13, 14, 10, 192);//255);//26, 27, 19
-		SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND);
+		SDL_SetRenderDrawColor(mainRenderer, 26, 27, 19, 192);//255);//26, 27, 19
+		//SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND);
 		SDL_RenderFillRect(mainRenderer, &dest);
 	}
     // right overscan bar
