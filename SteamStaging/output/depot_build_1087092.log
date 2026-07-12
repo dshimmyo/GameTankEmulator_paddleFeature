@@ -1,14 +1,14 @@
-[2026-07-11 21:48:10]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
-[2026-07-11 21:48:10]: Building file listing for depot 1087092 ...
-[2026-07-11 21:48:10]: Found 8 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
-[2026-07-11 21:48:10]: Found 8 files (13 MB) for depot 1087092
-[2026-07-11 21:48:10]: Building depot 1087092, baseline manifest 4615884250298507164 (8 files)
-[2026-07-11 21:48:10]: Found 16 new chunks ( 16 used previously ) for depot 1087092, took 0 minutes, 0 seconds
-[2026-07-11 21:48:10]: Changes to baseline manifest 4615884250298507164 :
-[2026-07-11 21:48:10]: Changed: ".DS_Store" 7 KB size, 7 KB changed 
-[2026-07-11 21:48:10]: Changed: "BrickGame.app\Contents\MacOS\BrickGame" 8872 KB size, 8872 KB changed 
-[2026-07-11 21:48:10]: Changed: "BrickGame.app\Contents\MacOS\gamedata.gtr" 2048 KB size, 2048 KB changed 
-[2026-07-11 21:48:10]: Summary: 0 files added (0 bytes), 3 files changed (10.67 MB), 0 files removed (0 bytes)
-[2026-07-11 21:48:11]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 2608127508760377642, 1743 bytes).
-[2026-07-11 21:48:11]: Uploading 9 out of 9 missing chunks.
-[2026-07-11 21:48:13]: Success! New manifestID 3250308173026446200 created and 9 new chunks uploaded.
+[2026-07-11 22:21:01]: Starting build for depot 1087092, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot/", build flags 0x0
+[2026-07-11 22:21:01]: Building file listing for depot 1087092 ...
+[2026-07-11 22:21:01]: Found 8 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/mac_depot * -> .
+[2026-07-11 22:21:01]: Found 8 files (13 MB) for depot 1087092
+[2026-07-11 22:21:02]: Building depot 1087092, baseline manifest 4615884250298507164 (8 files)
+[2026-07-11 22:21:02]: Found 16 new chunks ( 16 used previously ) for depot 1087092, took 0 minutes, 0 seconds
+[2026-07-11 22:21:02]: Changes to baseline manifest 4615884250298507164 :
+[2026-07-11 22:21:02]: Changed: ".DS_Store" 7 KB size, 7 KB changed 
+[2026-07-11 22:21:02]: Changed: "BrickGame.app\Contents\MacOS\BrickGame" 8872 KB size, 8872 KB changed 
+[2026-07-11 22:21:02]: Changed: "BrickGame.app\Contents\MacOS\gamedata.gtr" 2048 KB size, 2048 KB changed 
+[2026-07-11 22:21:02]: Summary: 0 files added (0 bytes), 3 files changed (10.67 MB), 0 files removed (0 bytes)
+[2026-07-11 22:21:02]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 638434174965436128, 1728 bytes).
+[2026-07-11 22:21:03]: Uploading 9 out of 9 missing chunks.
+[2026-07-11 22:21:06]: Success! New manifestID 6786017462840654487 created and 9 new chunks uploaded.
