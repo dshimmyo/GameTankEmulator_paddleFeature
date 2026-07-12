@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.17 font fix, ntsc hybrid default" 
+  "Desc" "v1.0.17a font fix only" 
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 

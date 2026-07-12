@@ -1,13 +1,13 @@
-[2026-07-11 15:34:30]: Starting build for depot 1087091, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/windows_depot/", build flags 0x0
-[2026-07-11 15:34:30]: Building file listing for depot 1087091 ...
-[2026-07-11 15:34:30]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/windows_depot * -> .
-[2026-07-11 15:34:30]: Found 3 files (12 MB) for depot 1087091
-[2026-07-11 15:34:30]: Building depot 1087091, baseline manifest 5726012586607424105 (3 files)
-[2026-07-11 15:34:31]: Found 13 new chunks ( 13 used previously ) for depot 1087091, took 0 minutes, 0 seconds
-[2026-07-11 15:34:31]: Changes to baseline manifest 5726012586607424105 :
-[2026-07-11 15:34:31]: Changed: "BrickGame.exe" 8836 KB size, 8836 KB changed 
-[2026-07-11 15:34:31]: Changed: "gamedata.gtr" 2048 KB size, 2048 KB changed 
-[2026-07-11 15:34:31]: Summary: 0 files added (0 bytes), 2 files changed (10.63 MB), 0 files removed (0 bytes)
-[2026-07-11 15:34:31]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 13623811253158652672, 1058 bytes).
-[2026-07-11 15:34:31]: Uploading 11 out of 11 missing chunks.
-[2026-07-11 15:34:34]: Success! New manifestID 1439216862092353152 created and 11 new chunks uploaded.
+[2026-07-11 20:09:27]: Starting build for depot 1087091, content path is "/Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/windows_depot/", build flags 0x0
+[2026-07-11 20:09:27]: Building file listing for depot 1087091 ...
+[2026-07-11 20:09:27]: Found 3 files for mapping: /Users/dshimmyo/Documents/GitHub/GameTankEmulator/SteamStaging/content/windows_depot * -> .
+[2026-07-11 20:09:27]: Found 3 files (12 MB) for depot 1087091
+[2026-07-11 20:09:28]: Building depot 1087091, baseline manifest 5726012586607424105 (3 files)
+[2026-07-11 20:09:28]: Found 13 new chunks ( 13 used previously ) for depot 1087091, took 0 minutes, 0 seconds
+[2026-07-11 20:09:28]: Changes to baseline manifest 5726012586607424105 :
+[2026-07-11 20:09:28]: Changed: "BrickGame.exe" 8836 KB size, 8836 KB changed 
+[2026-07-11 20:09:28]: Changed: "gamedata.gtr" 2048 KB size, 2048 KB changed 
+[2026-07-11 20:09:28]: Summary: 0 files added (0 bytes), 2 files changed (10.63 MB), 0 files removed (0 bytes)
+[2026-07-11 20:09:28]: Uploading new manifest to depot-ingest.discovery.steamserver.net (handle 15449015871457569460, 1061 bytes).
+[2026-07-11 20:09:29]: Uploading 6 out of 6 missing chunks.
+[2026-07-11 20:09:32]: Success! New manifestID 5060231228827759947 created and 6 new chunks uploaded.
