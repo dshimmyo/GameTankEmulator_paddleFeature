@@ -1325,8 +1325,8 @@ void UpdateNTSCTexture() {
                 int sharp_b = sharp_pixel & 0xFF;
 
                 // 2. Decode pure isolated analog chroma components
-                float u_scaled = out_u * ntsc_color_shift;
-                float v_scaled = out_v * ntsc_color_shift;
+                float u_scaled = out_u * ntsc_color_shift * .5f;
+                float v_scaled = out_v * ntsc_color_shift * .5f;
                 
                 float r_chroma = 1.139883f * v_scaled;
                 float g_chroma = -0.394642f * u_scaled - 0.580622f * v_scaled;
@@ -1395,13 +1395,24 @@ void UpdateNTSCTexture() {
                 
                 uint32_t old_pixel = ntsc_framebuffer[history_fb_index];
 
-                // Perform a strict 50/50 blend (equal weighting)
-                // This averages the +Phase and -Phase cycles out to a stable constant
-                int blended_r = (base_mix_r + ((old_pixel >> 16) & 0xFF)) >> 1;
-                int blended_g = (base_mix_g + ((old_pixel >> 8) & 0xFF)) >> 1;
-                int blended_b = (base_mix_b + (old_pixel & 0xFF)) >> 1;
+				int old_r = (old_pixel >> 16) & 0xFF;
+                int old_g = (old_pixel >> 8) & 0xFF;
+                int old_b = old_pixel & 0xFF;
 
-                final_pixel = (0xFF000000) | (blended_r << 16) | (blended_g << 8) | blended_b;
+				// Attenuate old pixel values to simulate phosphor decay
+                // Adjust the fraction to tune the persistence trail:
+                // (x * 3) >> 2 is 75% retention (Fast decay)
+                // (x * 7) >> 3 is 87.5% retention (Heavy, smooth trail)
+                int attenuated_r = (old_r * 3) >> 2;
+                int attenuated_g = (old_g * 3) >> 2;
+                int attenuated_b = (old_b * 3) >> 2;
+
+                // Max behavior: Keep the brightest value between the new input and decaying trail
+                int final_r = (base_mix_r > attenuated_r) ? base_mix_r : attenuated_r;
+                int final_g = (base_mix_g > attenuated_g) ? base_mix_g : attenuated_g;
+                int final_b = (base_mix_b > attenuated_b) ? base_mix_b : attenuated_b;
+
+				final_pixel = (0xFF000000) | (final_r << 16) | (final_g << 8) | final_b;
             }
             ntsc_framebuffer[target_fb_index] = final_pixel;
         }
