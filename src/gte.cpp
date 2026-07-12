@@ -1190,10 +1190,17 @@ void UpdateNTSCTexture() {
     uint32_t* src_pixels = (uint32_t*)vRAM_Surface->pixels;
     int pitch_pixels = vRAM_Surface->pitch / 4;
 
+	/*
     static float frame_phase_offset = 0.0f;
     //frame_phase_offset = fmodf(frame_phase_offset + 4.0f, 12.0f); //NES
     frame_phase_offset = fmodf(frame_phase_offset + 6.0f, 12.0f); //GT 180 degree flip
 	//frame_phase_offset = fmodf(frame_phase_offset + 3.0f, 12.0f); //GT comfort 90 degree rotation
+	*/
+
+	// Derive the phase strictly from the absolute emulated frame counter
+	// Even-numbered frames = 0.0f, Odd-numbered frames = 6.0f
+	float frame_phase_offset = (timekeeper.frameCount % 2) == 0 ? 0.0f : 6.0f;//less flickery same result
+
 
     static std::vector<float> composite_signal;
     if (composite_signal.size() != (size_t)(NTSC_WIDTH * 4)) {
