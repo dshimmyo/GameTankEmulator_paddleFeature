@@ -91,6 +91,9 @@ int resetQueued = 0;
 int muteMask = 0;
 bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 
+#define PREFS_ORG_NAME "DKSInteractiveLLC"
+#define PREFS_APP_NAME "BrickGame"
+
 #define NTSC_RES_SCALE_DEFAULT 1.0f
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
@@ -112,7 +115,7 @@ static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
 // #define NTSC_TIMING_NES 1
 
 //static int ntsc_phase_alignment_mode = NTSC_TIMING_GAMETANK;
-const char* timing_mode_names[] = { "In-Phase / Locked (GT)", "Progressive Shift (NES)" };
+//const char* timing_mode_names[] = { "In-Phase / Locked (GT)", "Progressive Shift (NES)" };
 
 static int current_aa_selection = 0; // 0 = Crisp Pixels, 1 = Smooth Blending
 const char* aa_modes[] = { "Disabled (Crisp)", "Enabled (Smooth)" };
@@ -356,9 +359,27 @@ bool profiler_open = false;
 bool buffers_open = false;
 int profiler_x_axis = 0;
 
+std::string GetPrefsFilePath() {
+	//mac path: ~/Library/Application\ Support/DKSInteractiveLLC/BrickGame/emulator_prefs.cfg
+	//win path: C:\Users\<YourUsername>\AppData\Roaming\DKSInteractiveLLC\BrickGame\emulator_prefs.cfg
+    char* base_path = SDL_GetPrefPath(PREFS_ORG_NAME, PREFS_APP_NAME);
+    std::string config_path = "";
+
+    if (base_path) {
+        config_path = std::string(base_path) + "emulator_prefs.cfg";
+        SDL_free(base_path); 
+    } else {
+        config_path = "emulator_prefs.cfg";
+    }
+
+    return config_path;
+}
 
 void SavePreferences() {
-    std::ofstream file("emulator_prefs.cfg");
+	std::string path = GetPrefsFilePath();
+
+	//std::ofstream file("emulator_prefs.cfg");
+	std::ofstream file(path);
     if (file.is_open()) {
         file << "paddle_emulation_enabled=" << (paddle_emulation_enabled ? "1" : "0") << "\n";
         file << "ntsc_filter_enabled=" << (ntsc_filter_enabled ? "1" : "0") << "\n";
@@ -398,8 +419,10 @@ void RestoreDefaults() {
 
 void LoadPreferences() {
 	RestoreDefaults();
+	std::string path = GetPrefsFilePath();
 
-    std::ifstream file("emulator_prefs.cfg");
+	//std::ifstream file("emulator_prefs.cfg");
+	std::ifstream file(path);
     if (file.is_open()) {
         std::string line;
         while (std::getline(file, line)) {
