@@ -94,13 +94,13 @@ bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 #define PREFS_ORG_NAME "DKSInteractiveLLC"
 #define PREFS_APP_NAME "BrickGame"
 
-#define NTSC_RES_SCALE_DEFAULT 2.0f
+#define NTSC_RES_SCALE_DEFAULT 2
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
 #define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
 //#define NTSC_LEGACY_DEFAULT false
 bool ntsc_filter_enabled = NTSC_FILTER_ENABLED_DEFAULT;
-float ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
+int ntsc_res_scale = NTSC_RES_SCALE_DEFAULT;//3
 float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 
 #define NTSC_MODE_LUMA_PINNED 0
@@ -445,8 +445,8 @@ void LoadPreferences() {
                 } else if (key == "phosphor_blending_enabled") {
                     phosphor_blending_enabled = (val != 0);
                 } else if (key == "ntsc_res_scale") {
-                    //ntsc_res_scale = val;
-					ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
+                    ntsc_res_scale = val;
+					//ntsc_res_scale = (float)std::atof(val_str.c_str()); // Use atof for float conversion
 				} else if (key == "ntsc_color_shift") {
     				ntsc_color_shift = (float)std::atof(val_str.c_str()); // Use atof for float conversion
             	} else if (key == "ntsc_filter_mode"){
@@ -1301,10 +1301,21 @@ void UpdateNTSCTexture() {
 		if (dynamic_decay < 0.0f) dynamic_decay = 0.0f;
 
         // --- OPTIMIZED DECODE ---
+		int dynamic_radius = (int)(6.0f * ntsc_res_scale); // <-- UPDATED: Scales baseline radius 6 alongside resolution scale
+        if (dynamic_radius < 1) dynamic_radius = 1;       // <-- UPDATED: Safety guardrail to avoid division-by-zero errors
+
+		// Scale the color shift intensity to compensate for the tighter spatial wave compression
+		// A linear scale multiplier restores the original color volume at higher resolutions
+		//float chroma_compensation = sqrtf(ntsc_res_scale);//sqrt more balanced
+		// At 1.0 scale = 1.0x color
+		// At 2.0 scale = 1.57x color
+		float chroma_compensation = powf((float)ntsc_res_scale, 0.65f);//pushed a little harder than sqrt
+		float dynamic_color_shift = ntsc_color_shift * chroma_compensation;
+
         for (int x = 0; x < NTSC_WIDTH; ++x) {
             int center = x * SAMPLES_PER_PIXEL;
-            int begin = (center - 6 > 0) ? center - 6 : 0; // Keep radius fixed at 6
-            int end = (center + 6 < TOTAL_SAMPLES) ? center + 6 : TOTAL_SAMPLES;
+            int begin = (center - dynamic_radius > 0) ? center - dynamic_radius : 0; //(center - 6 > 0) ? center - 6 : 0; // Keep radius fixed at 6
+            int end = (center + dynamic_radius < TOTAL_SAMPLES) ? center + dynamic_radius : TOTAL_SAMPLES; //(center + 6 < TOTAL_SAMPLES) ? center + 6 : TOTAL_SAMPLES;
 
             float out_y = 0.0f, out_u = 0.0f, out_v = 0.0f;
             float sample_scale = 1.0f / (float)(end - begin);
@@ -1320,15 +1331,15 @@ void UpdateNTSCTexture() {
 
             out_u *= 2.8f; 
             out_v *= 2.8f;
-
+			
 			int base_mix_r = 0, base_mix_g = 0, base_mix_b = 0; 
 
 			if (ntsc_filter_mode == NTSC_MODE_LEGACY){//2 legacy //0 luma pinned, 1 true hybrid, 2 legacy
 				// Full reconstruction using decoded out_y instead of sharp_r/g/b
 				// Apply color shift ONLY to the chroma vectors, leaving out_y (luminance) independent
-                float r_out = out_y + (1.139883f * out_v * ntsc_color_shift );
-                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * ntsc_color_shift /** 2.0f*/);
-                float b_out = out_y + (2.032062f * out_u * ntsc_color_shift* 2.0f);
+                float r_out = out_y + (1.139883f * out_v * dynamic_color_shift );
+                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * dynamic_color_shift /** 2.0f*/);
+                float b_out = out_y + (2.032062f * out_u * dynamic_color_shift * 2.0f);
 
                 // Convert to integer space and apply hard boundary clamping to prevent bitwise corruption
                 base_mix_r = (int)(r_out * 255.0f);
@@ -1348,8 +1359,8 @@ void UpdateNTSCTexture() {
                 int sharp_b = sharp_pixel & 0xFF;
 
                 // 2. Decode pure isolated analog chroma components
-                float u_scaled = out_u * ntsc_color_shift * .5f;
-                float v_scaled = out_v * ntsc_color_shift * .5f;
+                float u_scaled = out_u * dynamic_color_shift * .5f;
+                float v_scaled = out_v * dynamic_color_shift * .5f;
                 
                 float r_chroma = 1.139883f * v_scaled;
                 float g_chroma = -0.394642f * u_scaled - 0.580622f * v_scaled;
@@ -1390,8 +1401,8 @@ void UpdateNTSCTexture() {
             float sharp_y = 0.299f * sharp_r + 0.587f * sharp_g + 0.114f * sharp_b;
 
             // Apply color shift multiplier directly to the decoded analog chroma paths
-            float u_scaled = out_u * ntsc_color_shift;
-            float v_scaled = out_v * ntsc_color_shift;
+            float u_scaled = out_u * dynamic_color_shift;
+            float v_scaled = out_v * dynamic_color_shift;
 
 			// Reconstruct RGB using sharp details + analog color vectors
 			float r_out = sharp_y + 1.139883f * v_scaled;
@@ -1590,8 +1601,8 @@ void refreshScreen() {
 					if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
 						SavePreferences();
 					}
-					if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
-						ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
+					if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,4)){
+						ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 4;
 						SavePreferences();
 					}
 					if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
@@ -1754,8 +1765,8 @@ void refreshScreen() {
 				if (ImGui::SliderFloat("NTSC Color Shift",&ntsc_color_shift,0.05f,2.0f, "%.2f")){
 					SavePreferences();
 				}
-				if (ImGui::SliderFloat("NTSC Resolution Scale",&ntsc_res_scale,1.0f,4.0f, "%.1f")){
-					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1.0f) : 4.0f;
+				if (ImGui::SliderInt("NTSC Resolution Scale",&ntsc_res_scale,1,4)){
+					ntsc_res_scale = (ntsc_res_scale <= 4) ? (ntsc_res_scale = (ntsc_res_scale > 0) ? ntsc_res_scale : 1) : 4;
 					SavePreferences();
 				}
 				if (ImGui::Checkbox("Enable Phosphor Blending", &phosphor_blending_enabled)) {
