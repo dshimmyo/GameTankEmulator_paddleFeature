@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.17d font fix, ntsc framelock, opaque bars, phase simplification" 
+  "Desc" "v1.0.17e font, ntsc flicker, bars, phase, phosphor" 
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
