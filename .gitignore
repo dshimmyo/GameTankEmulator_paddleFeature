@@ -13,7 +13,10 @@ dist
 !BrickGameWin
 !BrickGameWin/*.exe
 !BrickGameWin/*.dll
+!SteamStaging/content/windows_depot/*
+!SteamStaging/content/mac_depot/*
+
 BrickGame*/emulator_prefs.cfg
+*.DS_Store
 SteamStaging/output
 SteamDemoStaging/output
-
