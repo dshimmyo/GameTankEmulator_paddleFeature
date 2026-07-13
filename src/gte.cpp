@@ -1474,6 +1474,8 @@ void refreshScreen() {
         
         framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_ARGB8888, 
                                               SDL_TEXTUREACCESS_STREAMING, target_tex_w, target_tex_h);
+		SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;                        
+    	SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
     }
 
 #ifdef WRAPPER_MODE
