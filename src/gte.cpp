@@ -2305,6 +2305,9 @@ int main(int argC, char* argV[]) {
 		SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
 	}
 	AdjustDisplayForSteam(mainWindow);
+	if (paddle_emulation_enabled) {
+		SDL_SetRelativeMouseMode(SDL_TRUE);//enforce mouse control when requested
+	}
 #ifndef WASM_BUILD
 	main_imgui_ctx = ImGui::CreateContext();
 	main_implot_ctx = ImPlot::CreateContext();
