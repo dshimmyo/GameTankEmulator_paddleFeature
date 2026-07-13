@@ -14,3 +14,6 @@ dist
 !BrickGameWin/*.exe
 !BrickGameWin/*.dll
 BrickGame*/emulator_prefs.cfg
+SteamStaging/output
+SteamDemoStaging/output
+
