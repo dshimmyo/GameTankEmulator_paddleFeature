@@ -94,7 +94,7 @@ bool paddle_emulation_enabled = false;//user set, overrides joystick behavior
 #define PREFS_ORG_NAME "DKSInteractiveLLC"
 #define PREFS_APP_NAME "BrickGame"
 
-#define NTSC_RES_SCALE_DEFAULT 1.0f
+#define NTSC_RES_SCALE_DEFAULT 2.0f
 #define NTSC_COLOR_SHIFT_DEFAULT 0.75f
 #define NTSC_FILTER_ENABLED_DEFAULT true
 #define NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT true
