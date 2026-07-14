@@ -1337,9 +1337,9 @@ void UpdateNTSCTexture() {
 			if (ntsc_filter_mode == NTSC_MODE_LEGACY){//2 legacy //0 luma pinned, 1 true hybrid, 2 legacy
 				// Full reconstruction using decoded out_y instead of sharp_r/g/b
 				// Apply color shift ONLY to the chroma vectors, leaving out_y (luminance) independent
-                float r_out = out_y + (1.139883f * out_v * dynamic_color_shift );
-                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * dynamic_color_shift /** 2.0f*/);
-                float b_out = out_y + (2.032062f * out_u * dynamic_color_shift * 2.0f);
+                float r_out = out_y + (1.139883f * out_v * ntsc_color_shift );
+                float g_out = out_y + ((-0.394642f * out_u - 0.580622f * out_v) * ntsc_color_shift /** 2.0f*/);
+                float b_out = out_y + (2.032062f * out_u * ntsc_color_shift * 2.0f);
 
                 // Convert to integer space and apply hard boundary clamping to prevent bitwise corruption
                 base_mix_r = (int)(r_out * 255.0f);
