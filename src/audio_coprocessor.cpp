@@ -138,7 +138,10 @@ void AudioCoprocessor::StartAudio() {
 
     SDL_InitSubSystem(SDL_INIT_AUDIO);
 
-    state.device = SDL_OpenAudioDevice(NULL, 0, &wanted, &obtained, 0);
+    // Mac audio glitch fix maybe
+    //CHANGE: Allow frequency and sample changes so obtained reflects reality
+    int allowed_changes = SDL_AUDIO_ALLOW_FREQUENCY_CHANGE | SDL_AUDIO_ALLOW_SAMPLES_CHANGE;
+    state.device = SDL_OpenAudioDevice(NULL, 0, &wanted, &obtained, allowed_changes);
 
     /* Open the audio device, forcing the desired format */
     if (state.device  == 0 ) {
