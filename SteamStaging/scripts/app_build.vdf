@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.18b font, flicker, bars, phase, phosphor, chroma scale, prefs, sticky aa, mac audio"
+  "Desc" "v1.0.18c font, flicker, bars, phase, phosphor, chroma scale, prefs, sticky aa, mac audio, legacy"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
