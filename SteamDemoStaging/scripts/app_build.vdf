@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.18c font, flicker, bars, phase, phosphor, chroma scale, prefs, sticky aa, mac audio, legacy" 
+  "Desc" "v1.0.19 new demo rom attract unlock" 
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
