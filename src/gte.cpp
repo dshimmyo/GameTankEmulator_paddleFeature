@@ -2296,9 +2296,14 @@ int main(int argC, char* argV[]) {
 
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
+	SDL_SetThreadPriority(SDL_THREAD_PRIORITY_TIME_CRITICAL); //critical timing! video game lives are at stake!
 
 	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
+	if (mainRenderer != nullptr) { 
+		SDL_RenderSetVSync(mainRenderer, 0);//(disables driver-level V-Sync buffering)
+		SDL_GL_SetSwapInterval(0);
+	}
 	framebufferTexture = SDL_CreateTexture(mainRenderer, SDL_PIXELFORMAT_RGB888, SDL_TEXTUREACCESS_STREAMING, GT_WIDTH, GT_HEIGHT * 2);
 	if (ntsc_filter_enabled){
 		SDL_ScaleMode scale_mode = (current_aa_selection == 1) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;						
