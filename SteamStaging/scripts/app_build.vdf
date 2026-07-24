@@ -1,0 +1,13 @@
+"AppBuild"
+{
+  "AppID" "1087090"                 
+  "Desc" "v1.0.18c font, flicker, bars, phase, phosphor, chroma scale, prefs, sticky aa, mac audio, legacy"
+  "ContentRoot" "../content/"
+  "BuildOutput" "../output/"
+
+  "Depots"
+  {
+    "1087091" "depot_1087091.vdf" 
+    "1087092" "depot_1087092.vdf"
+  }
+}
