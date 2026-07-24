@@ -231,26 +231,6 @@ const uint32_t PADDLE_CHECK_INTERVAL = 1000; // Check every 1 second
 //     //}
 // }
 
-void HighPrecisionDelay(uint64_t target_counter) {
-    uint64_t current = SDL_GetPerformanceCounter();
-    uint64_t freq = SDL_GetPerformanceFrequency();
-    
-    // sleeps for only the time needed depending on frame render time
-    while ((double)(target_counter - current) / freq > 0.002) {
-        SDL_Delay(1);
-        current = SDL_GetPerformanceCounter();
-    }
-    
-    // Tight-spin loop (busy wait) for the final sub-millisecond precision
-    while (SDL_GetPerformanceCounter() < target_counter) {
-        #if defined(__x86_64__) || defined(_M_X64)
-        _mm_pause(); // Reduce CPU pipeline heat during spin
-        #elif defined(__aarch64__)
-        asm volatile("yield");
-        #endif
-    }
-}
-
 void SaveNVRAM() {
 	fstream file;
 	if(loadedRomType != RomType::FLASH2M_RAM32K) return;
@@ -1868,8 +1848,6 @@ double frame_time_accumulator = 0;
 #endif
 
 EM_BOOL mainloop(double time, void* userdata) {
-	const uint64_t frameDuration = SDL_GetPerformanceFrequency() / 60;
-    uint64_t nextFrameTarget = SDL_GetPerformanceCounter() + frameDuration;
 #ifdef WASM_BUILD
         double delta_time = time - last_raf_time;
         frame_time_accumulator += delta_time;
@@ -2033,11 +2011,7 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 				}
 			}
 		} else {
-				//SDL_Delay(16);
-				HighPrecisionDelay(nextFrameTarget);
-    
-				// Schedule the exact target for the next frame
-				nextFrameTarget += frameDuration;
+				SDL_Delay(16);
 		}
 		blitter->CatchUp();
 		
