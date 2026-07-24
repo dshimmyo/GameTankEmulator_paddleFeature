@@ -2322,7 +2322,7 @@ int main(int argC, char* argV[]) {
 
 	SDL_SetColorKey(vRAM_Surface, SDL_FALSE, 0);
 	SDL_SetColorKey(gRAM_Surface, SDL_FALSE, 0);
-	SDL_SetThreadPriority(SDL_THREAD_PRIORITY_TIME_CRITICAL); //critical timing! video game lives are at stake!
+	SDL_SetThreadPriority(SDL_THREAD_PRIORITY_HIGH); //video game lives are at stake!
 
 	mainWindow = SDL_CreateWindow(WINDOW_TITLE, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 	mainRenderer = SDL_CreateRenderer(mainWindow, -1, EmulatorConfig::defaultRendererFlags);
