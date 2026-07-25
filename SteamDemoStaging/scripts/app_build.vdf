@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.19 new demo rom attract unlock" 
+  "Desc" "v1.0.20 reduced input latency"  
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
