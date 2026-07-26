@@ -43,20 +43,18 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 
 void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
     ACPState *state = (ACPState*) udata;
-    uint16_t *stream16 = (uint16_t*) stream;
+    int16_t *stream16 = (int16_t*) stream;
+    int sampleCount = len / sizeof(int16_t);
 
     // If emulation is paused, just fill buffer with zeroes without advancing the apu
     if (state->isEmulationPaused) {
-	for(int i = 0; i < len/sizeof(uint16_t); i++) {
-	    if(stream16 != NULL) {
-		stream16[i] = 0;
-	    }
-	}
-
-	return;
+        for(int i = 0; i < sampleCount; i++) {
+            if(stream16 != NULL) stream16[i] = 0;
+        }
+        return;
     }
-
-    for(int i = 0; i < len/sizeof(uint16_t); i++) {
+    
+    for(int i = 0; i < sampleCount; i++) { // Generate Raw Coprocessor Samples
         if(stream16 != NULL) {
             stream16[i] = state->dacReg;
             stream16[i] -= 128;
@@ -77,6 +75,10 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
                 state->cpu->Run(state->cycles_per_sample, state->cycle_counter);
             }
         }
+    }
+    
+    if (state->postProcessHook != NULL && stream16 != NULL) { // Post-Processing Pipeline Stage (if hooked)
+        state->postProcessHook(stream16, sampleCount, state->postProcessUserData);
     }
 }
 
@@ -125,6 +127,13 @@ const char* AudioFormatString(SDL_AudioFormat f) {
 void ACP_CPUStopped() {
 }
 
+void ApplyRetroAudioFilter(int16_t* buffer, int count, void* userData) {
+    if (userData != NULL) {
+        RetroAudioFilter* filter = (RetroAudioFilter*)userData;
+        filter->ProcessBufferS16(buffer, count);
+    }
+}
+
 void AudioCoprocessor::StartAudio() {
     SDL_AudioSpec wanted, obtained;
 
@@ -150,6 +159,11 @@ void AudioCoprocessor::StartAudio() {
         printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
         state.format = obtained.format;
+
+        state.filter.Init((float)obtained.freq); //retro filter init
+        state.postProcessHook = ApplyRetroAudioFilter; //callback function address
+        state.postProcessUserData = &state.filter; //data pointer
+
         SDL_PauseAudioDevice(state.device, 0);
 
         state.clksPerHostSample = 315000000 / (88 * obtained.freq);

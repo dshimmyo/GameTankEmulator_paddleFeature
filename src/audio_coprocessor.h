@@ -2,12 +2,15 @@ using namespace std;
 
 #include "mos6502/mos6502.h"
 #include "SDL_inc.h"
+#include "retro_audio_filter.h"
 
 #define ACP_RESET 0
 #define ACP_NMI 1
 #define ACP_RATE 6
 
 #define AUDIO_RAM_SIZE 4096
+
+typedef void (*AudioPostProcessCallback)(int16_t* buffer, int sampleCount, void* userData);
 
 typedef struct ACPState {
 	uint8_t ram[AUDIO_RAM_SIZE];
@@ -28,6 +31,9 @@ typedef struct ACPState {
 	int volume;
 	bool isMuted;
 	bool isEmulationPaused;
+	RetroAudioFilter filter;
+    AudioPostProcessCallback postProcessHook;
+    void* postProcessUserData;
 } ACPState;
 
 class AudioCoprocessor {
