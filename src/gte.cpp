@@ -1153,7 +1153,10 @@ void toggleFullScreen() {
 	}
 	timekeeper.scaling_increment = INITIAL_SCALING_INCREMENT;
 }
-
+void toggleRetroAudio() {
+	retro_audio_filter_enabled = !retro_audio_filter_enabled;
+    Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
+}
 void toggleMute() {
 	muteMask = muteMask ^ MUTE_SOURCE_MANUAL;
 	AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
@@ -1175,6 +1178,7 @@ typedef struct HotkeyAssignment {
 HotkeyAssignment hotkeys[] = {
 	{&toggleFullScreen, SDLK_F11},
 	{&toggleMute, SDLK_m},
+	{&toggleRetroAudio, SDLK_a},
 #if !defined(WASM_BUILD) && !defined(WRAPPER_MODE)
 	{&doRamDump, SDLK_F6},
 	{&toggleSteppingWindow, SDLK_F7},
