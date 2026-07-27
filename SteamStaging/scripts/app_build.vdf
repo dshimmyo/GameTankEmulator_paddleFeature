@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.20 reduced input latency"
+  "Desc" "v1.0.21 retro audio"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
