@@ -110,7 +110,9 @@ float ntsc_color_shift = NTSC_COLOR_SHIFT_DEFAULT;////1.5f;
 
 const char* modes[] = { "Sharp (Balanced)", "Hybrid (Additive)", "Legacy (Full Signal)" };
 static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
-bool enable_retro_audio_filter = true;
+
+#define RETRO_AUDIO_FILTER_DEFAULT 1
+bool retro_audio_filter_enabled = RETRO_AUDIO_FILTER_DEFAULT;
 // #define NTSC_TIMING_GAMETANK 0
 // #define NTSC_TIMING_NES 1
 
@@ -375,6 +377,11 @@ std::string GetPrefsFilePath() {
     return config_path;
 }
 
+void Set_retro_audio_filter_enabled(ACPState* state, bool value) {
+    if (!state) return;
+    state->filter.SetEnabled(value);
+}
+
 void SavePreferences() {
 	std::string path = GetPrefsFilePath();
 
@@ -388,6 +395,8 @@ void SavePreferences() {
 		file << "ntsc_color_shift=" << (ntsc_color_shift) << "\n";//float
 		file << "current_aa_selection=" << (current_aa_selection) << "\n";
 		file << "ntsc_filter_mode=" << (ntsc_filter_mode) << "\n";
+		file << "retro_audio_filter_enabled=" << (retro_audio_filter_enabled ? "1" : "0") << "\n";
+
 		//file << "ntsc_phase_alignment_mode=" << (ntsc_phase_alignment_mode) << "\n";
 		
         file.close();
@@ -404,6 +413,8 @@ void RestoreDefaults() {
 	ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;//0=luma-pinned, 1=hybrid, 2=legacy
 	current_aa_selection = 0;
 	//ntsc_phase_alignment_mode = 0;
+	//retro_audio_filter_enabled = RETRO_AUDIO_FILTER_DEFAULT;
+	//Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
 
 
 	SDL_ScaleMode scale_mode;
@@ -464,7 +475,10 @@ void LoadPreferences() {
 						scale_mode = SDL_ScaleModeNearest;
 					}
 					SDL_SetTextureScaleMode(framebufferTexture, scale_mode);
-				}
+				} else if (key == "retro_audio_filter_enabled") {
+                    retro_audio_filter_enabled = (val != 0);
+					Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
+                }
 			}
         }
         file.close();
@@ -1185,12 +1199,6 @@ bool checkHotkey(SDL_Keycode  key) {
 #define EM_BOOL int
 #endif
 
-void Set_retro_audio_filter_enabled(ACPState* state, bool value) {
-    if (!state) return;
-    state->filter.SetEnabled(value);
-}
-
-
 // Global lookups to eliminate inner loop math entirely
 static bool tables_initialized = false;
 static float sin_table[12];
@@ -1593,8 +1601,9 @@ void refreshScreen() {
 					}
 					ImGui::EndTooltip();
 				}
-				if (ImGui::Checkbox("Retro Audio Filter", &enable_retro_audio_filter)){
-					Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, enable_retro_audio_filter);
+				if (ImGui::Checkbox("Retro Audio Filter", &retro_audio_filter_enabled)){
+					Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
+					SavePreferences();
 				}
 				if (ImGui::BeginMenu("Video Filter Options")) {
 					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
@@ -1760,8 +1769,9 @@ void refreshScreen() {
 				}
 				ImGui::EndTooltip();
 			}			
-				if (ImGui::Checkbox("Retro Audio Filter", &enable_retro_audio_filter)){
-					Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, enable_retro_audio_filter);
+				if (ImGui::Checkbox("Retro Audio Filter", &retro_audio_filter_enabled)){
+					Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
+					SavePreferences();
 				}
 				if (ImGui::BeginMenu("Video Filter Options")) {
 				if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
@@ -2377,6 +2387,8 @@ int main(int argC, char* argV[]) {
 #else
 	PaddleInit();
 	SDL_RaiseWindow(mainWindow);
+	Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
+
 	while(running) {
 		mainloop(0, NULL);
 	}
