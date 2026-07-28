@@ -1552,7 +1552,9 @@ void refreshScreen() {
     SDL_RenderCopy(mainRenderer, framebufferTexture, &src, &dest);
 
 	if (ntsc_filter_enabled){
-		SDL_SetRenderDrawColor(mainRenderer, 26, 27, 19, 192);//255);//26, 27, 19
+		if (retro_audio_filter_enabled)	SDL_SetRenderDrawColor(mainRenderer, 64, 27, 64, 192);//255);//26, 27, 19
+		else SDL_SetRenderDrawColor(mainRenderer, 26, 27, 19, 192);//255);//26, 27, 19
+
 		//SDL_SetRenderDrawBlendMode(mainRenderer, SDL_BLENDMODE_BLEND);
 		SDL_RenderFillRect(mainRenderer, &dest);
 	}
@@ -1857,6 +1859,14 @@ void refreshScreen() {
 
 		ImGui::End();
 #endif
+	}
+	// Direct screen overlay for video recording
+	if (retro_audio_filter_enabled) {
+		ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(10, 10), ImVec2(580, 70), IM_COL32(0, 0, 0, 180));
+		ImGui::GetForegroundDrawList()->AddText(NULL, 42.0f, ImVec2(20, 15), IM_COL32(0, 255, 128, 255), "[ AUDIO FILTER: ON ]");
+	} else {
+		ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(10, 10), ImVec2(500, 70), IM_COL32(0, 0, 0, 180));
+		ImGui::GetForegroundDrawList()->AddText(NULL, 42.0f, ImVec2(20, 15), IM_COL32(255, 80, 80, 255), "[ AUDIO FILTER: OFF ]");
 	}
 	ImGui::Render();
 	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), mainRenderer);
