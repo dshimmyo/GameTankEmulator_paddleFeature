@@ -4,7 +4,7 @@ RetroAudioFilter::RetroAudioFilter()
     : drive(1.25f), 
       enabled(true), 
       comb_write_ptr(0), 
-      comb_delay_samples(110), //80//110// 80 samples = ~1.8 ms cavity bounce
+      comb_delay_ms(1.8f),  ////comb_delay_samples(110), //80//110// 80 samples = ~1.8 ms cavity bounce
       comb_feedback(0.65f)    //.35// .25-.55Controls "plasticiness" / ringing
 {}
 
@@ -52,9 +52,18 @@ void RetroAudioFilter::init_peaking(Biquad& f, float freq, float dbGain, float Q
 }
 
 void RetroAudioFilter::Init(float sampleRate) {
-    init_highpass(highpass, 80.0f, sampleRate);//160
-    init_peaking(box_peak, 400.0f, 8.0f, 1.4f, sampleRate);//default 500.0f, 4.5gain, 1.4f Q, 
-    init_lowpass(lowpass, 7500.0f, sampleRate);
+    // 1. Convert target milliseconds (~1.8 ms) to samples based on host frequency
+    comb_delay_samples = (int)(comb_delay_ms * sampleRate / 1000.0f);
+
+    // 2. Safety clamp to buffer capacity
+    if (comb_delay_samples >= COMB_BUFFER_SIZE) {
+        comb_delay_samples = COMB_BUFFER_SIZE - 1;
+    }
+
+    // Initialize biquad EQ stages...
+    init_highpass(highpass, 80.0f, sampleRate);//220
+    init_peaking(box_peak, 400.0f, 8.0f, 1.4f, sampleRate);//500 7.0 2.2
+    init_lowpass(lowpass, 7500.0f, sampleRate);//7000
 }
 
 void RetroAudioFilter::SetEnabled(bool state) {

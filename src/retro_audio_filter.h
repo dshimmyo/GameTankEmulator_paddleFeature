@@ -42,6 +42,7 @@ private:
     static const int COMB_BUFFER_SIZE = 128;
     float comb_buffer[COMB_BUFFER_SIZE];
     int comb_write_ptr;
+    float comb_delay_ms; // Target delay in milliseconds//
     int comb_delay_samples; // ~80 samples @ 44.1kHz = 1.8 ms
     float comb_feedback;    // Amount of resonance decay (~0.35)
 
