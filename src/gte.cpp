@@ -113,6 +113,8 @@ static int ntsc_filter_mode = NTSC_FILTER_MODE_DEFAULT;// luma, hybrid, legacy
 
 #define RETRO_AUDIO_FILTER_DEFAULT 1
 bool retro_audio_filter_enabled = RETRO_AUDIO_FILTER_DEFAULT;
+bool fbcf=false;
+
 // #define NTSC_TIMING_GAMETANK 0
 // #define NTSC_TIMING_NES 1
 
@@ -381,7 +383,10 @@ void Set_retro_audio_filter_enabled(ACPState* state, bool value) {
     if (!state) return;
     state->filter.SetEnabled(value);
 }
-
+void Set_retro_audio_filter_fbcf(ACPState* state, bool value) {
+    if (!state) return;
+    state->filter.SetFBCF(value);
+}
 void SavePreferences() {
 	std::string path = GetPrefsFilePath();
 
@@ -1157,6 +1162,10 @@ void toggleRetroAudio() {
 	retro_audio_filter_enabled = !retro_audio_filter_enabled;
     Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
 }
+void toggleRetroAudioFBCF() {
+	fbcf=!fbcf;
+    Set_retro_audio_filter_fbcf(AudioCoprocessor::singleton_acp_state, fbcf);
+}
 void toggleMute() {
 	muteMask = muteMask ^ MUTE_SOURCE_MANUAL;
 	AudioCoprocessor::singleton_acp_state->isMuted = (muteMask != 0);
@@ -1179,6 +1188,7 @@ HotkeyAssignment hotkeys[] = {
 	{&toggleFullScreen, SDLK_F11},
 	{&toggleMute, SDLK_m},
 	{&toggleRetroAudio, SDLK_a},
+	{&toggleRetroAudioFBCF, SDLK_d},
 #if !defined(WASM_BUILD) && !defined(WRAPPER_MODE)
 	{&doRamDump, SDLK_F6},
 	{&toggleSteppingWindow, SDLK_F7},
@@ -1867,6 +1877,13 @@ void refreshScreen() {
 	} else {
 		ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(10, 10), ImVec2(500, 70), IM_COL32(0, 0, 0, 180));
 		ImGui::GetForegroundDrawList()->AddText(NULL, 42.0f, ImVec2(20, 15), IM_COL32(255, 80, 80, 255), "[ AUDIO FILTER: OFF ]");
+	}
+	if (fbcf) {
+		//ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(10, 10), ImVec2(580, 70), IM_COL32(0, 0, 0, 180));
+		ImGui::GetForegroundDrawList()->AddText(NULL, 22.0f, ImVec2(20, 40), IM_COL32(0, 255, 128, 255), "[ fbcf: ON ]");
+	} else {
+		//ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(10, 10), ImVec2(500, 70), IM_COL32(0, 0, 0, 180));
+		ImGui::GetForegroundDrawList()->AddText(NULL, 22.0f, ImVec2(20, 40), IM_COL32(255, 80, 80, 255), "[ fbcf: OFF ]");
 	}
 	ImGui::Render();
 	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), mainRenderer);

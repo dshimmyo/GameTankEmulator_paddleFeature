@@ -3,6 +3,7 @@
 RetroAudioFilter::RetroAudioFilter() 
     : drive(1.25f), 
       enabled(true), 
+      use_fbcf(false),
       comb_write_ptr(0), 
       comb_delay_samples(110), //80//110// 80 samples = ~1.8 ms cavity bounce
       comb_feedback(0.65f)    //.35// .25-.55Controls "plasticiness" / ringing
@@ -61,7 +62,10 @@ void RetroAudioFilter::SetEnabled(bool state) {
     enabled = state;
     if (enabled) ResetBuffers();
 }
-
+void RetroAudioFilter::SetFBCF(bool state) {
+    use_fbcf = state;
+    if (enabled) ResetBuffers();
+}
 bool RetroAudioFilter::IsEnabled() const { return enabled; }
 
 void RetroAudioFilter::ResetBuffers() {
@@ -78,13 +82,14 @@ float RetroAudioFilter::ProcessSample(float sample_in) {
     float x = sample_in * 0.8f;//0.6f; //Apply pre-attenuation pad (~ -4.5 dB) to prevent filter overflow/clipping
     x = fast_soft_clip(x * drive); // Drive / Soft Saturation
 
-    // Plastic Cabinet Comb Filter (Short Cavity Bounce)
-    int read_ptr = (comb_write_ptr - comb_delay_samples + COMB_BUFFER_SIZE) % COMB_BUFFER_SIZE;
-    float delayed_sample = comb_buffer[read_ptr];
+    if (use_fbcf){
+        // Plastic Cabinet Comb Filter (Short Cavity Bounce)
+        int read_ptr = (comb_write_ptr - comb_delay_samples + COMB_BUFFER_SIZE) % COMB_BUFFER_SIZE;
+        float delayed_sample = comb_buffer[read_ptr];
 
-    // Store sample + feedback back into ring buffer
-    comb_buffer[comb_write_ptr] = x + (delayed_sample * comb_feedback);
-    comb_write_ptr = (comb_write_ptr + 1) % COMB_BUFFER_SIZE;
+        // Store sample + feedback back into ring buffer
+        comb_buffer[comb_write_ptr] = x + (delayed_sample * comb_feedback);
+        comb_write_ptr = (comb_write_ptr + 1) % COMB_BUFFER_SIZE;
 
     // Blend the resonant standing wave with the direct signal
     //x = x + (delayed_sample * 0.5f);2:1 ratio blend
