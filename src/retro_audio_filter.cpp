@@ -52,7 +52,7 @@ void RetroAudioFilter::init_peaking(Biquad& f, float freq, float dbGain, float Q
 }
 
 void RetroAudioFilter::Init(float sampleRate) {
-    init_highpass(highpass, 160.0f, sampleRate);
+    init_highpass(highpass, 80.0f, sampleRate);//160
     init_peaking(box_peak, 400.0f, 8.0f, 1.4f, sampleRate);//default 500.0f, 4.5gain, 1.4f Q, 
     init_lowpass(lowpass, 7500.0f, sampleRate);
 }
