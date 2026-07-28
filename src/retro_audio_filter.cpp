@@ -105,7 +105,7 @@ float RetroAudioFilter::ProcessSample(float sample_in) {
     x = process_biquad(highpass, x);
     x = process_biquad(box_peak, x); // +4.5 dB peak at 500 Hz is now safe
     x = process_biquad(lowpass, x);
-    return x;
+    return fast_soft_clip(x);//x //helps eliminate clipping or square wave artifacts
 }
 
 void RetroAudioFilter::ProcessBufferS16(int16_t* buffer, int count) {
