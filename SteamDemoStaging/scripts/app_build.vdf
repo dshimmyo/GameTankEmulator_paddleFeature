@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.20 reduced input latency"  
+  "Desc" "v1.0.22 feedback comb filter"  
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
