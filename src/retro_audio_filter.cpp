@@ -5,7 +5,7 @@ RetroAudioFilter::RetroAudioFilter()
       enabled(true), 
       comb_write_ptr(0), 
       comb_delay_samples(110), //80//110// 80 samples = ~1.8 ms cavity bounce
-      comb_feedback(0.55f)    //.35// .25-.55Controls "plasticiness" / ringing
+      comb_feedback(0.65f)    //.35// .25-.55Controls "plasticiness" / ringing
 {}
 
 void RetroAudioFilter::init_highpass(Biquad& f, float freq, float sampleRate) {
@@ -75,7 +75,7 @@ void RetroAudioFilter::ResetBuffers() {
 
 float RetroAudioFilter::ProcessSample(float sample_in) {
     if (!enabled) return sample_in;
-    float x = sample_in * 0.6f; //Apply pre-attenuation pad (~ -4.5 dB) to prevent filter overflow/clipping
+    float x = sample_in * 0.8f;//0.6f; //Apply pre-attenuation pad (~ -4.5 dB) to prevent filter overflow/clipping
     x = fast_soft_clip(x * drive); // Drive / Soft Saturation
 
     // Plastic Cabinet Comb Filter (Short Cavity Bounce)
@@ -87,8 +87,11 @@ float RetroAudioFilter::ProcessSample(float sample_in) {
     comb_write_ptr = (comb_write_ptr + 1) % COMB_BUFFER_SIZE;
 
     // Blend the resonant standing wave with the direct signal
-    x = x + (delayed_sample * 0.5f);
-
+    //x = x + (delayed_sample * 0.5f);2:1 ratio blend
+    //x = (x * 0.75f) + (delayed_sample * 0.5f); // 3:2 ratio = extra phase cancellation
+    //x = (x * 0.5f) + (delayed_sample * 0.5f); // 1:1 ratio = maximum phase cancellation
+    //x = (x * 0.7f) + (delayed_sample * 0.3f);// Goldilocks Blend: 70% direct signal, 30% resonant cavity reflection
+    x = (x * 0.6f) + (delayed_sample * 0.4f);// Hair More Resonance: 60% direct signal, 40% resonant cavity reflection
 
     x = process_biquad(highpass, x);
     x = process_biquad(box_peak, x); // +4.5 dB peak at 500 Hz is now safe
