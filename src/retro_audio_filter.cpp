@@ -97,7 +97,7 @@ float RetroAudioFilter::ProcessSample(float sample_in) {
     //x = (x * 0.5f) + (delayed_sample * 0.5f); // 1:1 ratio = maximum phase cancellation
     //x = (x * 0.7f) + (delayed_sample * 0.3f);// Goldilocks Blend: 70% direct signal, 30% resonant cavity reflection
     x = (x * 0.6f) + (delayed_sample * 0.4f);// Hair More Resonance: 60% direct signal, 40% resonant cavity reflection
-
+    }
     x = process_biquad(highpass, x);
     x = process_biquad(box_peak, x); // +4.5 dB peak at 500 Hz is now safe
     x = process_biquad(lowpass, x);
