@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.0.22a feedback comb filter, ms samples"
+  "Desc" "v1.0.22b feedback comb filter, ms samples, soft clip"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
