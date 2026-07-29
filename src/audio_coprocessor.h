@@ -21,6 +21,8 @@ typedef struct ACPState {
     bool resetting;
     uint8_t dacReg;
     uint16_t clksPerHostSample;
+	double clksPerHostSampleDouble;
+	double clk_accumulator;
     uint64_t cycles_per_sample;
 	uint32_t samples_per_frame;
 	uint8_t clkMult;

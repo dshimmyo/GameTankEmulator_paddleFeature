@@ -61,7 +61,13 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
             stream16[i] *= state->volume;
             stream16[i] *= state->isMuted ? 0 : 1;
         }
-        state->irqCounter -= state->clksPerHostSample;
+
+        //state->irqCounter -= state->clksPerHostSample;
+        state->clk_accumulator += state->clksPerHostSampleDouble;
+        int cycles_to_run = (int)state->clk_accumulator;
+        state->clk_accumulator -= cycles_to_run;
+        state->irqCounter -= cycles_to_run;
+
         if(state->irqCounter < 0) {
             if(state->resetting) {
                 state->resetting = false;
@@ -136,7 +142,8 @@ void ApplyRetroAudioFilter(int16_t* buffer, int count, void* userData) {
 
 void AudioCoprocessor::StartAudio() {
     SDL_AudioSpec wanted, obtained;
-
+    SDL_memset(&wanted, 0, sizeof(wanted));
+    
     /* Set the audio format */
     wanted.freq = 44100;
     wanted.format = AUDIO_S16SYS;
@@ -166,7 +173,9 @@ void AudioCoprocessor::StartAudio() {
 
         SDL_PauseAudioDevice(state.device, 0);
 
-        state.clksPerHostSample = 315000000 / (88 * obtained.freq);
+        state.clksPerHostSampleDouble = 315000000.0 / (88.0 * (double)obtained.freq);
+        state.clk_accumulator = 0.0;
+        state.clksPerHostSample = (int)state.clksPerHostSampleDouble;
     }
 }
 
