@@ -20,6 +20,7 @@ private:
     Biquad lowpass;
     float drive;
     bool enabled;
+    bool use_fbcf;
 
     inline float fast_soft_clip(float x) {
         return x / (1.0f + fabsf(x));
@@ -51,6 +52,7 @@ public:
     float CombFilter(float x);
     void Init(float sampleRate);
     void SetEnabled(bool state);
+    void SetFBCF(bool state);
     bool IsEnabled() const;
     void ResetBuffers();
 

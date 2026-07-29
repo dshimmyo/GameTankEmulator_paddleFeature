@@ -3,6 +3,7 @@
 RetroAudioFilter::RetroAudioFilter() 
     : drive(1.25f), 
       enabled(true), 
+      use_fbcf(false),
       comb_write_ptr(0), 
       comb_delay_ms(1.8f),  ////comb_delay_samples(110), //80//110// 80 samples = ~1.8 ms cavity bounce
       comb_feedback(0.65f)    //.35// .25-.55Controls "plasticiness" / ringing
@@ -71,6 +72,10 @@ void RetroAudioFilter::SetEnabled(bool state) {
     if (enabled) ResetBuffers();
 }
 
+void RetroAudioFilter::SetFBCF(bool state) {
+    use_fbcf = state;
+    if (enabled) ResetBuffers();
+}
 bool RetroAudioFilter::IsEnabled() const { return enabled; }
 
 void RetroAudioFilter::ResetBuffers() {
@@ -105,8 +110,8 @@ float RetroAudioFilter::ProcessSample(float sample_in) {
     float x = sample_in * 0.6f;//0.8f; //Apply pre-attenuation pad (~ -4.5 dB) to prevent filter overflow/clipping
     x = fast_soft_clip(x * drive); // Drive / Soft Saturation
 
-    x = CombFilter(x);
-
+    if (use_fbcf){ x = CombFilter(x);}
+    
     x = process_biquad(highpass, x);
     x = process_biquad(box_peak, x); // +4.5 dB peak at 500 Hz is now safe
     x = process_biquad(lowpass, x);
