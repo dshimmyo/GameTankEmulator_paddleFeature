@@ -48,6 +48,7 @@ private:
 
 public:
     RetroAudioFilter();
+    float CombFilter(float x);
     void Init(float sampleRate);
     void SetEnabled(bool state);
     bool IsEnabled() const;
