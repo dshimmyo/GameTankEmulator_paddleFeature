@@ -179,6 +179,12 @@
                style="margin-right: 10px;">
               <span style="font-family: sans-serif; font-size: 14px;">Enable Paddle Mode (Mouse)</span>
           </label>
+          <label for="joystickPaddleToggle" style="cursor: pointer; display: flex; align-items: center;">
+            <input type="checkbox" id="joystickPaddleToggle" 
+            onchange="toggleJoystickPaddleMode(this.checked)";
+            style="margin-right: 10px;">
+            <span style="font-family: sans-serif; font-size: 14px;">Enable Paddle Mode (Joystick Axis 0)</span>
+          </label>
       </div>
       <div class="download-section">
           <p></p>
@@ -528,12 +534,70 @@
           return decodeURIComponent(results[2].replace(/\+/g, ' '));
       }
 
+// --- Gamepad / Hardware Paddle Integration ---
+window.joystickPaddleEnabled = false;
+let lastJoystickPaddleVal = null;
+
+function toggleJoystickPaddleMode(enabled) {
+    window.joystickPaddleEnabled = enabled;
+    //onchange="window.joystickPaddleEnabled= this.checked; Module.ccall('SetJoystickPaddleMode', null, ['boolean'], [this.checked])"
+
+    // Notify C++ backend to enable/disable paddle mode if needed
+    if (typeof Module.ccall !== 'undefined') {
+        //Module.ccall('SetPaddleMode', null, ['boolean'], [enabled]);
+        Module.ccall('SetJoystickPaddleMode', null, ['boolean'], [enabled]);
+    }
+
+    if (enabled) {
+        // Reset cached value so the first frame sends cleanly
+        lastJoystickPaddleVal = null;
+        pollGamepadPaddle();
+    }
+}
+
+function pollGamepadPaddle() {
+    if (!window.joystickPaddleEnabled) return;
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let joystickFound = false;
+
+    for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i];
+        if (gp && gp.connected && gp.axes.length > 0) {
+            joystickFound = true;
+            
+            // Raw axis 0 values range from -1.0 (left) to 1.0 (right)
+            const rawAxis = gp.axes[0];
+
+            // Map [-1.0, 1.0] to [0, 255]
+            const normalized = (rawAxis + 1) / 2;
+            const paddleVal = Math.floor(Math.max(0, Math.min(1, normalized)) * 255);
+
+            // Only issue the C call when the axis value actually updates
+            if (paddleVal !== lastJoystickPaddleVal) {
+                lastJoystickPaddleVal = paddleVal;
+                if (typeof Module.ccall !== 'undefined') {
+                    //Module.ccall('SetPaddleValue', null, ['number'], [paddleVal]);
+                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+                    console.log("Paddle Value:", paddleVal);
+                }
+            }
+            //console.log("Raw Axis 0:", gp.axes[0]);
+            
+            // Focus on the primary connected controller (Index 0/First active)
+            break; 
+        }
+    }
+
+    // Continuously loop on every rendered frame
+    requestAnimationFrame(pollGamepadPaddle);
+}
+
       Module.onRuntimeInitialized = function() {
 
         let lastBit = 0; // Track the bit pressed by the image
 
         function handleGamepadInput(e, isPressed) {
-            if (window.paddleModeEnabled) return;
+            if (window.paddleModeEnabled || window.joystickPaddleEnabled) return;
             e.preventDefault();
 
             const rect = inputScreen.getBoundingClientRect();
@@ -552,7 +616,6 @@
                     touchedMask &= ~lastBit; // Clear the bit we actually pressed
                     lastBit = 0;
                 }
-                
                 console.log(`[GamepadImage] Final Mask Sent: ${touchedMask}`);
                 Module.ccall('SetButtons', null, ["int"], [touchedMask]);
             }
@@ -593,6 +656,10 @@
 
         inputScreen.ontouchstart = (e) => handleGamepadInput(e, true);
         inputScreen.ontouchend = (e) => handleGamepadInput(e, false);
+
+        Module.ccall('SetPaddleMode', null, ['boolean'], [false]);
+        // Start polling physical gamepads/joysticks for paddle axis input
+        requestAnimationFrame(pollGamepadPaddle);
       // In your JS initialization
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       Module._SetPaddleTouchMode(isTouch);
