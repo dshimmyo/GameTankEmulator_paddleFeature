@@ -1022,7 +1022,9 @@ extern "C" {
 		}
 		void SetJoystickPaddleMode(bool enabled) {
 			paddleDetected = enabled;//allows ROM to adjust
-			
+		}
+		void SetJoystickPaddleButton(bool enabled){
+			joysticks->SetPaddleAButtonDirect(enabled);
 		}
 		void SetPaddleTouchMode(bool enabled) {
 			paddle_touch_mode = enabled;

@@ -555,6 +555,7 @@ function toggleJoystickPaddleMode(enabled) {
     }
 }
 
+const BUTTON_A_MASK = 16;
 function pollGamepadPaddle() {
     if (!window.joystickPaddleEnabled) return;
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -562,6 +563,21 @@ function pollGamepadPaddle() {
 
     for (let i = 0; i < gamepads.length; i++) {
         const gp = gamepads[i];
+
+        if (gp.buttons.length > 0) {
+                // gp.buttons[0].pressed is true when held, false when released
+                const isPressed = gp.buttons[0].pressed;
+                
+                if (isPressed !== window.lastPaddleButtonState) {
+                    window.lastPaddleButtonState = isPressed;
+
+                    if (typeof Module.ccall !== 'undefined') {
+                        // Pass 'boolean' and the boolean value to C++
+                        Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
+                    }
+                }
+            }
+        
         if (gp && gp.connected && gp.axes.length > 0) {
             joystickFound = true;
             
@@ -582,6 +598,8 @@ function pollGamepadPaddle() {
                 }
             }
             //console.log("Raw Axis 0:", gp.axes[0]);
+
+            
             
             // Focus on the primary connected controller (Index 0/First active)
             break; 
