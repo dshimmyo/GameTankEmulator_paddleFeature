@@ -125,9 +125,6 @@ bool phosphor_blending_enabled = NTSC_PHOSPHOR_BLENDING_ENABLED_DEFAULT;
 bool paddle_touch_mode = false;
 bool paddleDetected = false;
 bool dksPaddleDetected = false;
-bool use_any_joystick_as_paddle = true;//this needs to be on at all times, hard-coded
-int paddle_device_index = 0; //use only if use_any_joystick_as_paddle is enabled
-int paddle_axis_index = 0; //use only if use_any_joystick_as_paddle is enabled
 bool romRequestedPaddle = false; // source of truth
 SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
@@ -201,8 +198,6 @@ void PaddleInit() {
 
         active_paddle_handle = chosen_joystick;
         dksPaddle_instanceID = SDL_JoystickInstanceID(active_paddle_handle);
-        paddle_device_index = chosen_index;
-        paddle_axis_index = 0;
         paddleDetected = true;
 
         if (dksPaddle_instanceID != bakInstanceID) {
@@ -1654,27 +1649,6 @@ void refreshScreen() {
 					}
 					ImGui::EndMenu();
 				}
-				
-				// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
-				// 	SavePreferences();
-				// 	paddleDetected = false;
-				// 	PaddleInit();
-				// }
-				
-				// ImGui::SetNextItemWidth(60.0f);
-				// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
-				// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
-				// 	SavePreferences();
-				// 	paddleDetected = false;
-				// 	if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
-				// 	PaddleInit();
-				// }
-				
-				// ImGui::SetNextItemWidth(60.0f);
-				// if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
-				// 	if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
-				// 	SavePreferences();
-				// }
 
 				if(ImGui::BeginMenu("Pallete")) {
 					ImGui::RadioButton("Unscaled Capture", &palette_select, PALETTE_SELECT_CAPTURE);
@@ -1822,26 +1796,6 @@ void refreshScreen() {
 				}
 				ImGui::EndMenu();
 			}
-			
-
-			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
-			// 	SavePreferences();
-			// 	paddleDetected = false;
-			// 	PaddleInit();
-			// }
-			// ImGui::SetNextItemWidth(60.0f);
-			// if (ImGui::InputInt("Joystick Index", &paddle_device_index)){
-			// 	if (paddle_device_index < 0) paddle_device_index = 0; // Prevent negative indices
-			// 	SavePreferences();
-			// 	paddleDetected = false;
-			// 	if (joysticks != nullptr) joysticks->SetHeldButtons(0); // Prevent stuck inputs
-			// 	PaddleInit();
-			// }
-			// ImGui::SetNextItemWidth(60.0f);
-			// if (ImGui::InputInt("Joystick Axis", &paddle_axis_index)){
-			// 	if (paddle_axis_index < 0) paddle_axis_index = 0; // Prevent negative indices
-			// 	SavePreferences();
-			// }
 
 			ImGui::EndMenu();
 		}
@@ -2155,15 +2109,9 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 	#ifndef WASM_BUILD
 
 			else if (e.type == SDL_JOYAXISMOTION) {
-				// #ifdef WASM_BUILD
-				// if (e.jaxis.axis == paddle_axis_index) {
-				// 	if (use_any_joystick_as_paddle || e.jaxis.which == dksPaddle_instanceID) {
-				// 		currentPaddleRawValue = e.jaxis.value; 
-				// 	}
-				// }
-				// #else
+				
 				if (paddleDetected && e.jaxis.axis == paddle_axis_index && !paddle_emulation_enabled) {
-					if (/*use_any_joystick_as_paddle || */ e.jaxis.which == dksPaddle_instanceID) {
+					if ( e.jaxis.which == dksPaddle_instanceID) {
 						currentPaddleRawValue = e.jaxis.value;
 					}               
 				}
