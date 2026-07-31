@@ -536,6 +536,7 @@
 
 // --- Gamepad / Hardware Paddle Integration ---
 window.joystickPaddleEnabled = false;
+let isGamepadConnected = false;
 let lastJoystickMask = -1;
 let lastJoystickPaddleVal = -1;
 const BUTTON_UP    = 0x0808; // 0b0000100000001000
@@ -576,145 +577,103 @@ function toggleJoystickPaddleMode(enabled) {
 
 function pollGamepad() {
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let joystickFound = false;
-
+    
+    // Find first connected gamepad
+    let activeGp = null;
     for (let i = 0; i < gamepads.length; i++) {
-        const gp = gamepads[i];
+        if (gamepads[i] && gamepads[i].connected) {
+            activeGp = gamepads[i];
+            break;
+        }
+    }
 
-        if (!gp || !gp.connected) continue;
+    const currentlyConnected = (activeGp !== null);
 
-          if (window.joystickPaddleEnabled) {
-            
-            if (gp.buttons.length > 0) {
-              // gp.buttons[0].pressed is true when held, false when released
-              const isPressed = gp.buttons[0].pressed;
-              
-              if (isPressed !== window.lastPaddleButtonState) {
-                  window.lastPaddleButtonState = isPressed;
+    // =========================================================
+    // CONNECTIVITY STATE CHANGE DETECTED
+    // =========================================================
+    if (currentlyConnected !== isGamepadConnected) {
+        isGamepadConnected = currentlyConnected;
 
-                  if (typeof Module.ccall !== 'undefined') {
-                      // Pass 'boolean' and the boolean value to C++
-                      Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
-                  }
-              }
+        if (typeof Module.ccall !== 'undefined') {
+            //Module.ccall('OnGamepadConnectionChanged', null, ['boolean'], [isGamepadConnected]);
+            Module.ccall('SetJoystickPaddleMode', null, ['boolean'], [isGamepadConnected]);
+
+            // If disconnected, force C++ input state to zero so no inputs stick
+            if (!isGamepadConnected) {
+                Module.ccall('SetJoystickHeldButtons', null, ['int'], [0]);
+                Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [false]);
             }
+        }
 
-            if (gp.axes.length > 0) {
-              joystickFound = true;
-            
-            // Raw axis 0 values range from -1.0 (left) to 1.0 (right)
-            const rawAxis = gp.axes[0];
+        // Reset JS tracking so new connection immediately sends fresh values
+        lastJoystickMask = -1;
+        lastJoystickPaddleVal = -1;
+    }
 
-            // Map [-1.0, 1.0] to [0, 255]
-            const normalized = (rawAxis + 1) / 2;
-            const paddleVal = Math.floor(Math.max(0, Math.min(1, normalized)) * 255);
-
-            // Only issue the C call when the axis value actually updates
-            if (paddleVal !== lastJoystickPaddleVal) {
-                lastJoystickPaddleVal = paddleVal;
-                if (typeof Module.ccall !== 'undefined') {
-                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
-                    console.log("Paddle Value:", paddleVal);
+    // =========================================================
+    // PROCESS INPUTS (ONLY IF CONNECTED)
+    // =========================================================
+    if (currentlyConnected) {
+        if (window.joystickPaddleEnabled) {
+            // --- PADDLE MODE ---
+            if (activeGp.buttons.length > 0) {
+                const isPressed = activeGp.buttons[0].pressed;
+                if (isPressed !== window.lastPaddleButtonState) {
+                    window.lastPaddleButtonState = isPressed;
+                    if (typeof Module.ccall !== 'undefined') {
+                        Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
+                    }
                 }
             }
-            //console.log("Raw Axis 0:", gp.axes[0]);
 
-            // Focus on the primary connected controller (Index 0/First active)
-            break; 
-          }
+            if (activeGp.axes.length > 0) {
+                const rawAxis = activeGp.axes[0];
+                const normalized = (rawAxis + 1) / 2;
+                const paddleVal = Math.floor(Math.max(0, Math.min(1, normalized)) * 255);
+
+                if (paddleVal !== lastJoystickPaddleVal) {
+                    lastJoystickPaddleVal = paddleVal;
+                    if (typeof Module.ccall !== 'undefined') {
+                        Module.ccall('SetPaddleValue', null, ['int'], [paddleVal]);
+                    }
+                }
+            }
         } else {
-              let mask = 0;
-              const btns = gp.buttons;
-              const axes = gp.axes;
+            // --- STANDARD GAMEPAD MODE ---
+            let mask = 0;
+            const btns = activeGp.buttons;
+            const axes = activeGp.axes;
 
-              // --- D-PAD / DIRECTIONALS ---
-              if (btns[12] && btns[12].pressed) mask |= BUTTON_UP;
-              if (btns[13] && btns[13].pressed) mask |= BUTTON_DOWN;
-              if (btns[14] && btns[14].pressed) mask |= BUTTON_LEFT;
-              if (btns[15] && btns[15].pressed) mask |= BUTTON_RIGHT;
+            if (btns[12] && btns[12].pressed) mask |= BUTTON_UP;
+            if (btns[13] && btns[13].pressed) mask |= BUTTON_DOWN;
+            if (btns[14] && btns[14].pressed) mask |= BUTTON_LEFT;
+            if (btns[15] && btns[15].pressed) mask |= BUTTON_RIGHT;
 
-              // Analog stick fallback for D-pad (when physical D-pad isn't held)
-              if (axes && axes.length >= 2) {
-                  if (axes[1] < -0.5) mask |= BUTTON_UP;
-                  if (axes[1] >  0.5) mask |= BUTTON_DOWN;
-                  if (axes[0] < -0.5) mask |= BUTTON_LEFT;
-                  if (axes[0] >  0.5) mask |= BUTTON_RIGHT;
-              }
+            if (axes && axes.length >= 2) {
+                if (axes[1] < -0.5) mask |= BUTTON_UP;
+                if (axes[1] >  0.5) mask |= BUTTON_DOWN;
+                if (axes[0] < -0.5) mask |= BUTTON_LEFT;
+                if (axes[0] >  0.5) mask |= BUTTON_RIGHT;
+            }
 
-              // --- ACTION BUTTONS ---
-              if (btns[0] && btns[0].pressed) mask |= BUTTON_A;
-              if (btns[1] && btns[1].pressed) mask |= BUTTON_B;
-              if (btns[2] && btns[2].pressed) mask |= BUTTON_C;
-              if (btns[9] && btns[9].pressed) mask |= BUTTON_START;
+            if (btns[0] && btns[0].pressed) mask |= BUTTON_A;
+            if (btns[1] && btns[1].pressed) mask |= BUTTON_B;
+            if (btns[2] && btns[2].pressed) mask |= BUTTON_C;
+            if (btns[9] && btns[9].pressed) mask |= BUTTON_START;
 
-              // Send to C++ only when mask changes
-              if (mask !== lastJoystickMask) {
-                  lastJoystickMask = mask;
-                  if (typeof Module.ccall !== 'undefined') {
-                      Module.ccall('SetJoystickHeldButtons', null, ['int'], [mask]);
-                  }
-              }
-            break; // Process primary connected gamepad only
-          
+            if (mask !== lastJoystickMask) {
+                lastJoystickMask = mask;
+                if (typeof Module.ccall !== 'undefined') {
+                    Module.ccall('SetJoystickHeldButtons', null, ['int'], [mask]);
+                }
+            }
         }
     }
 
     requestAnimationFrame(pollGamepad);
 }
 
-function pollGamepadPaddle() {
-    if (!window.joystickPaddleEnabled) return;
-    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
-    let joystickFound = false;
-
-    for (let i = 0; i < gamepads.length; i++) {
-        const gp = gamepads[i];
-
-        if (gp.buttons.length > 0) {
-              // gp.buttons[0].pressed is true when held, false when released
-              const isPressed = gp.buttons[0].pressed;
-              
-              if (isPressed !== window.lastPaddleButtonState) {
-                  window.lastPaddleButtonState = isPressed;
-
-                  if (typeof Module.ccall !== 'undefined') {
-                      // Pass 'boolean' and the boolean value to C++
-                      Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
-                  }
-              }
-          }
-        
-        if (gp && gp.connected && gp.axes.length > 0) {
-            joystickFound = true;
-            
-            // Raw axis 0 values range from -1.0 (left) to 1.0 (right)
-            const rawAxis = gp.axes[0];
-
-            // Map [-1.0, 1.0] to [0, 255]
-            const normalized = (rawAxis + 1) / 2;
-            const paddleVal = Math.floor(Math.max(0, Math.min(1, normalized)) * 255);
-
-            // Only issue the C call when the axis value actually updates
-            if (paddleVal !== lastJoystickPaddleVal) {
-                lastJoystickPaddleVal = paddleVal;
-                if (typeof Module.ccall !== 'undefined') {
-                    //Module.ccall('SetPaddleValue', null, ['number'], [paddleVal]);
-                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
-                    console.log("Paddle Value:", paddleVal);
-                }
-            }
-            //console.log("Raw Axis 0:", gp.axes[0]);
-
-            
-            
-            // Focus on the primary connected controller (Index 0/First active)
-            break; 
-        }
-    }
-
-    // Continuously loop on every rendered frame
-    requestAnimationFrame(pollGamepadPaddle);
-}
 
       Module.onRuntimeInitialized = function() {
 
@@ -793,9 +752,10 @@ function pollGamepadPaddle() {
         console.log("Gamepad connected at index %d: %s. %d buttons, %d axes.",
             e.gamepad.index, e.gamepad.id,
             e.gamepad.buttons.length, e.gamepad.axes.length);
+            isGamepadConnected=true;
 
         if (typeof Module.ccall !== 'undefined') {
-            Module.ccall('SetJoystickPaddleMode', null, ['boolean', 'int'], [true, e.gamepad.index]);
+            Module.ccall('SetJoystickPaddleMode', null, ['boolean'], [true]);
         }
     });
 
@@ -806,10 +766,11 @@ function pollGamepadPaddle() {
         // Reset tracking variables so reconnection starts clean
         lastJoystickMask = -1;
         lastJoystickPaddleVal = -1;
+        isGamepadConnected=false;
 
         if (typeof Module.ccall !== 'undefined') {
             // Send connection = false to C++
-            Module.ccall('SetJoystickPaddleMode', null, ['boolean', 'int'], [false, e.gamepad.index]);
+            Module.ccall('SetJoystickPaddleMode', null, ['boolean'], [false]);
             
             // Safety: clear inputs immediately when disconnected
             Module.ccall('SetJoystickHeldButtons', null, ['int'], [0]);
