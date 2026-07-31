@@ -1016,10 +1016,12 @@ extern "C" {
 			}
 		}
 		void SetJoystickPaddleMode(bool enabled) {
-			paddleDetected = enabled;//allows ROM to adjust
+			paddleDetected = enabled;//allows BrickGame ROM to adjust
 		}
 		void SetJoystickPaddleButton(bool enabled){
-			joysticks->SetPaddleAButtonDirect(enabled);
+			if (joysticks != nullptr) {
+				joysticks->SetPaddleAButtonDirect(enabled);
+			}
 		}
 		void SetJoystickHeldButtons(int buttonmask) {
 			if (joysticks != nullptr) {
@@ -1047,7 +1049,9 @@ extern "C" {
 
 		void EMSCRIPTEN_KEEPALIVE UpdatePaddleFromMouseJS(int index, int dx) {
 			// Calls your existing logic that adds dx to the current paddle position
-			joysticks->UpdatePaddleFromMouse(0, dx);
+			if (joysticks != nullptr) {
+				joysticks->UpdatePaddleFromMouse(0, dx);
+			}
 		}
 
 	}
