@@ -537,10 +537,27 @@
 // --- Gamepad / Hardware Paddle Integration ---
 window.joystickPaddleEnabled = false;
 let lastJoystickPaddleVal = null;
+const BUTTON_UP    = 0x0001;
+const BUTTON_DOWN  = 0x0002;
+const BUTTON_LEFT  = 0x0004;
+const BUTTON_RIGHT = 0x0008;
+const BUTTON_A     = 0x0010;
+const BUTTON_B     = 0x0020;
+const BUTTON_C     = 0x0040;
+const BUTTON_START = 0x0080; // Optional: Start button (typically buttons[9])
 
 function toggleJoystickPaddleMode(enabled) {
     window.joystickPaddleEnabled = enabled;
-    //onchange="window.joystickPaddleEnabled= this.checked; Module.ccall('SetJoystickPaddleMode', null, ['boolean'], [this.checked])"
+
+    if (enabled) {
+      lastJoystickMask = 0;
+      Module.ccall('SetJoystickHeldButtons', null, ['int'], [0]);//clear gamepad buttons
+    }
+    else{
+      // Reset paddle button state
+      window.lastPaddleButtonState = false;
+      Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [false]);
+    }
 
     // Notify C++ backend to enable/disable paddle mode if needed
     if (typeof Module.ccall !== 'undefined') {
@@ -551,11 +568,99 @@ function toggleJoystickPaddleMode(enabled) {
     if (enabled) {
         // Reset cached value so the first frame sends cleanly
         lastJoystickPaddleVal = null;
-        pollGamepadPaddle();
+        //pollGamepadPaddle();
     }
+    pollGamepad();
 }
 
-const BUTTON_A_MASK = 16;
+function pollGamepad() {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    let joystickFound = false;
+
+    for (let i = 0; i < gamepads.length; i++) {
+        const gp = gamepads[i];
+
+          if (window.joystickPaddleEnabled) {
+            
+            if (gp.buttons.length > 0) {
+              // gp.buttons[0].pressed is true when held, false when released
+              const isPressed = gp.buttons[0].pressed;
+              
+              if (isPressed !== window.lastPaddleButtonState) {
+                  window.lastPaddleButtonState = isPressed;
+
+                  if (typeof Module.ccall !== 'undefined') {
+                      // Pass 'boolean' and the boolean value to C++
+                      Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
+                  }
+              }
+            }
+
+            if (gp && gp.connected && gp.axes.length > 0) {
+            joystickFound = true;
+            
+            // Raw axis 0 values range from -1.0 (left) to 1.0 (right)
+            const rawAxis = gp.axes[0];
+
+            // Map [-1.0, 1.0] to [0, 255]
+            const normalized = (rawAxis + 1) / 2;
+            const paddleVal = Math.floor(Math.max(0, Math.min(1, normalized)) * 255);
+
+            // Only issue the C call when the axis value actually updates
+            if (paddleVal !== lastJoystickPaddleVal) {
+                lastJoystickPaddleVal = paddleVal;
+                if (typeof Module.ccall !== 'undefined') {
+                    //Module.ccall('SetPaddleValue', null, ['number'], [paddleVal]);
+                    Module.ccall('SetPaddleValue', null, ['number'], [Math.floor(paddleVal)]);
+                    console.log("Paddle Value:", paddleVal);
+                }
+            }
+            //console.log("Raw Axis 0:", gp.axes[0]);
+
+            // Focus on the primary connected controller (Index 0/First active)
+            break; 
+          }
+        } else {
+            if (gp && gp.connected) {
+              let mask = 0;
+              const btns = gp.buttons;
+              const axes = gp.axes;
+
+              // --- D-PAD / DIRECTIONALS ---
+              if (btns[12] && btns[12].pressed) mask |= BUTTON_UP;
+              if (btns[13] && btns[13].pressed) mask |= BUTTON_DOWN;
+              if (btns[14] && btns[14].pressed) mask |= BUTTON_LEFT;
+              if (btns[15] && btns[15].pressed) mask |= BUTTON_RIGHT;
+
+              // Analog stick fallback for D-pad (when physical D-pad isn't held)
+              if (axes && axes.length >= 2) {
+                  if (axes[1] < -0.5) mask |= BUTTON_UP;
+                  if (axes[1] >  0.5) mask |= BUTTON_DOWN;
+                  if (axes[0] < -0.5) mask |= BUTTON_LEFT;
+                  if (axes[0] >  0.5) mask |= BUTTON_RIGHT;
+              }
+
+              // --- ACTION BUTTONS ---
+              if (btns[0] && btns[0].pressed) mask |= BUTTON_A;
+              if (btns[1] && btns[1].pressed) mask |= BUTTON_B;
+              if (btns[2] && btns[2].pressed) mask |= BUTTON_C;
+              if (btns[9] && btns[9].pressed) mask |= BUTTON_START;
+
+              // Send to C++ only when mask changes
+              if (mask !== lastJoystickMask) {
+                  lastJoystickMask = mask;
+                  if (typeof Module.ccall !== 'undefined') {
+                      Module.ccall('SetJoystickHeldButtons', null, ['int'], [mask]);
+                  }
+              }
+            break; // Process primary connected gamepad only
+          }
+        }
+    }
+
+    requestAnimationFrame(pollGamepad);
+}
+
 function pollGamepadPaddle() {
     if (!window.joystickPaddleEnabled) return;
     const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -565,18 +670,18 @@ function pollGamepadPaddle() {
         const gp = gamepads[i];
 
         if (gp.buttons.length > 0) {
-                // gp.buttons[0].pressed is true when held, false when released
-                const isPressed = gp.buttons[0].pressed;
-                
-                if (isPressed !== window.lastPaddleButtonState) {
-                    window.lastPaddleButtonState = isPressed;
+              // gp.buttons[0].pressed is true when held, false when released
+              const isPressed = gp.buttons[0].pressed;
+              
+              if (isPressed !== window.lastPaddleButtonState) {
+                  window.lastPaddleButtonState = isPressed;
 
-                    if (typeof Module.ccall !== 'undefined') {
-                        // Pass 'boolean' and the boolean value to C++
-                        Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
-                    }
-                }
-            }
+                  if (typeof Module.ccall !== 'undefined') {
+                      // Pass 'boolean' and the boolean value to C++
+                      Module.ccall('SetJoystickPaddleButton', null, ['boolean'], [isPressed]);
+                  }
+              }
+          }
         
         if (gp && gp.connected && gp.axes.length > 0) {
             joystickFound = true;
@@ -677,7 +782,7 @@ function pollGamepadPaddle() {
 
         Module.ccall('SetPaddleMode', null, ['boolean'], [false]);
         // Start polling physical gamepads/joysticks for paddle axis input
-        requestAnimationFrame(pollGamepadPaddle);
+        requestAnimationFrame(pollGamepad);
       // In your JS initialization
       const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       Module._SetPaddleTouchMode(isTouch);

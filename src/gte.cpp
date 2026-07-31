@@ -1021,6 +1021,11 @@ extern "C" {
 		void SetJoystickPaddleButton(bool enabled){
 			joysticks->SetPaddleAButtonDirect(enabled);
 		}
+		void SetJoystickHeldButtons(int buttonmask) {
+			if (joysticks != nullptr) {
+				joysticks->SetHeldButtons(static_cast<uint16_t>(buttonmask));
+			}
+		}
 		void SetPaddleTouchMode(bool enabled) {
 			paddle_touch_mode = enabled;
 			// If we switch to touch, we must ensure relative mode is off
