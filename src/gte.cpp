@@ -1843,6 +1843,7 @@ EM_BOOL mainloop(double time, void* userdata) {
                 return true;
         }
         frame_time_accumulator -= target_frame_period_ms;
+		timekeeper.frameCount = static_cast<uint64_t>((time * 60.0) / 1000.0);
 #else
 //UpdatePaddleStatus();//lazy dev checker //is a bad idea to run this periodically
 
