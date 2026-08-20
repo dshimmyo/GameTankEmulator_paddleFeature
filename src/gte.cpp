@@ -2172,13 +2172,24 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 			 } else if (e.type == SDL_JOYDEVICEREMOVED) {
 				if (paddleDetected && e.jdevice.which == dksPaddle_instanceID) {
 					paddleDetected = false;
+					dksPaddleDetected = false;
 					dksPaddle_instanceID = -1; // Reset it
 					printf("Paddle/JoyStick Disconnected\n");
 				}
 				PaddleInit();
 			} else if (e.type == SDL_JOYDEVICEADDED) {
 				PaddleInit();
-            } else {
+            } 
+			else if (paddle_emulation_enabled || !paddleDetected){//paddle mouse button support
+				if (e.button.button == SDL_BUTTON_LEFT) {
+					if (e.type == SDL_MOUSEBUTTONDOWN) {
+						joysticks->SetPaddleAButtonDirect(true);
+					} else if (e.type == SDL_MOUSEBUTTONUP){
+						joysticks->SetPaddleAButtonDirect(false);
+					}
+            	}
+			}
+			else {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
         }
