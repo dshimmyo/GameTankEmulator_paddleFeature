@@ -2145,6 +2145,16 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 						}
 					}
 				}
+            // --- MOUSE BUTTON HANDLING (MAME TEMPEST STYLE) ---
+            } else if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
+                // Ignore clicks if the menu is open or ImGui is active
+                bool imguiCapturing = ImGui::GetIO().WantCaptureMouse;
+                if (!showMenu && !imguiCapturing) {
+                    if (e.button.button == SDL_BUTTON_LEFT) {
+                        bool isDown = (e.type == SDL_MOUSEBUTTONDOWN);
+                        joysticks->SetPaddleAButtonDirect(isDown);
+                    }
+                }
             } else if (e.type == SDL_JOYAXISMOTION) {
 				#ifdef WASM_BUILD
 				if (e.jaxis.axis == paddle_axis_index) {
@@ -2180,13 +2190,6 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 			} else if (e.type == SDL_JOYDEVICEADDED) {
 				PaddleInit();
             } 
-			else if ((paddle_emulation_enabled || !paddleDetected) && e.button.button == SDL_BUTTON_LEFT){//paddle mouse button support
-				if (e.type == SDL_MOUSEBUTTONDOWN) {
-					joysticks->SetPaddleAButtonDirect(true);
-				} else if (e.type == SDL_MOUSEBUTTONUP){
-					joysticks->SetPaddleAButtonDirect(false);
-				}
-			}
 			else {
 				joysticks->update(&e, showMenu || resetQueued);
 			}
