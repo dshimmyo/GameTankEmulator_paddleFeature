@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "4893250"                 
-  "Desc" "v1.0.22a feedback comb filter, ms samples"  
+  "Desc" "v1.1.1a mouse click support (fix), rom visual update"  
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
