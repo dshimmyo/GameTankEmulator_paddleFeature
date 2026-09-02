@@ -1,0 +1,3 @@
+cd into SteamStaging
+
+~/Documents/steamcmd/steamcmd.sh +login dksinteractive D4G4LD85WGCJ +run_app_build ~/Documents/GitHub/GameTankEmulator/SteamStaging/scripts/app_build.vdf +quit

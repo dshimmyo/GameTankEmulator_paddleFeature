@@ -1,0 +1,13 @@
+"AppBuild"
+{
+  "AppID" "4893250"                 
+  "Desc" "v1.1.1b mouse click support (fix2), rom visual update"  
+  "ContentRoot" "../content/"
+  "BuildOutput" "../output/"
+
+  "Depots"
+  {
+    "4893251" "depot_4893251.vdf" 
+    "4893252" "depot_4893252.vdf"
+  }
+}
