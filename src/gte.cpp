@@ -382,6 +382,87 @@ void Set_retro_audio_filter_enabled(ACPState* state, bool value) {
     state->filter.SetEnabled(value);
 }
 
+// Cache the high score in RAM so we don't hit the disk on every CPU read cycle
+static uint32_t g_cachedHighScore = 0;
+static bool g_highScoreLoaded = false;
+
+std::string GetHiscoreFilePath() {
+	//mac path: ~/Library/Application\ Support/DKSInteractiveLLC/BrickGame/emulator_prefs.cfg
+	//win path: C:\Users\<YourUsername>\AppData\Roaming\DKSInteractiveLLC\BrickGame\emulator_prefs.cfg
+    char* base_path = SDL_GetPrefPath(PREFS_ORG_NAME, PREFS_APP_NAME);
+	std::string path = base_path ? std::string(base_path) + "hiscore.ini" : "hiscore.ini";
+	if (base_path) SDL_free(base_path);
+	return path;
+}
+
+void SaveHighScoreToNativeFile(uint32_t pendingHighScore){
+	g_cachedHighScore = pendingHighScore; // Update RAM cache
+
+	std::string path = GetHiscoreFilePath();
+    std::ofstream file(path);
+    if (file.is_open()) {
+        file << "hiscore=" << pendingHighScore << "\n"; // Semicolon restored
+        file.close();
+    }
+}
+
+uint32_t GetLoadedHighScoreFromFile() {
+    if (g_highScoreLoaded) {
+        return g_cachedHighScore; // Fast return from RAM cache
+    }
+
+    std::string path = GetHiscoreFilePath();
+    std::ifstream file(path);
+    uint32_t returnvalue = 0;
+
+    if (file.is_open()) {
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty() || line[0] == '#') continue;
+
+            size_t delim_pos = line.find('=');
+            if (delim_pos != std::string::npos) {
+                std::string key = line.substr(0, delim_pos);
+                std::string val_str = line.substr(delim_pos + 1);
+
+                if (key == "hiscore") {
+                    // Use strtoul for safe unsigned 32-bit parsing
+                    returnvalue = static_cast<uint32_t>(std::strtoul(val_str.c_str(), nullptr, 10));
+                }
+            }
+        }
+        file.close();
+    }
+
+    g_cachedHighScore = returnvalue;
+    g_highScoreLoaded = true;
+    return g_cachedHighScore;
+}
+
+bool HasValidSaveFileOnDisk() {
+    std::string path = GetHiscoreFilePath();
+    
+    // Check if the file exists and can be opened
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        return false;
+    }
+
+    // Ensure the file isn't empty and contains a valid 'hiscore=' key
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+
+        if (line.rfind("hiscore=", 0) == 0) { // Starts with "hiscore="
+            file.close();
+            return true;
+        }
+    }
+
+    file.close();
+    return false;
+}
+
 void SavePreferences() {
 	std::string path = GetPrefsFilePath();
 
@@ -589,6 +670,18 @@ uint8_t* GetRAM(const uint16_t address) {
 }
 
 uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
+
+#ifdef WRAPPER_MODE
+    if (address >= 0x2400 && address <= 0x2403) {
+        uint32_t score = GetLoadedHighScoreFromFile(); // Hits file once, then returns cached RAM value
+        uint8_t shift = (address - 0x2400) * 8;
+        return (score >> shift) & 0xFF;
+    }
+    if (address == 0x2405) {
+        return HasValidSaveFileOnDisk() ? 0x01 : 0x00;
+    }
+#endif
+
 	if (address == 0x2007) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
         if (paddleDetected) {//because now we can override paddle with mouse if we want
@@ -659,6 +752,27 @@ uint8_t MemorySync(uint16_t address) {
 }
 
 void MemoryWrite(uint16_t address, uint8_t value) {
+
+		// Custom Hypercall Registers for Native Steam Cloud Saving
+#ifdef WRAPPER_MODE
+    if (address >= 0x2400 && address <= 0x2404) {
+        static uint32_t pendingHighScore = 0;
+
+        switch (address) {
+            case 0x2400: pendingHighScore = (pendingHighScore & 0xFFFFFF00) | value; break;
+            case 0x2401: pendingHighScore = (pendingHighScore & 0xFFFF00FF) | (value << 8); break;
+            case 0x2402: pendingHighScore = (pendingHighScore & 0xFF00FFFF) | (value << 16); break;
+            case 0x2403: pendingHighScore = (pendingHighScore & 0x00FFFFFF) | (value << 24); break;
+            case 0x2404:
+                if (value == 0x01) {
+                    SaveHighScoreToNativeFile(pendingHighScore);
+                }
+                break;
+        }
+        return; // intercept write, do not pass to bus
+    }
+#endif
+
 	// Catch the game trying to "write" to the Gamepad 2 port
     if (address == 0x2009) {
 #ifndef WASM_BUILD
