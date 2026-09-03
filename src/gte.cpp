@@ -1719,6 +1719,13 @@ void refreshScreen() {
 					Set_retro_audio_filter_enabled(AudioCoprocessor::singleton_acp_state, retro_audio_filter_enabled);
 					SavePreferences();
 				}
+				// if (ImGui::MenuItem("Clear High Score (Resets Game)")) { //is only implemented in wrapper mode rn
+				// 		SaveHighScoreToNativeFile(0);
+				// 		resetQueued = 2;
+				// 		showMenu = false;
+				// 		setMenuMute(showMenu);
+				// 		joysticks->Reset();
+				// }
 				if (ImGui::BeginMenu("Video Filter Options")) {
 					if (ImGui::Checkbox("Enable NTSC Filter", &ntsc_filter_enabled)) {
 						SDL_ScaleMode scale_mode;
@@ -1928,9 +1935,17 @@ void refreshScreen() {
 					RestoreDefaults();
 					SavePreferences();
 				}
+				
 				ImGui::EndMenu();
+				
 			}
-			
+			if (ImGui::MenuItem("Clear High Score (Resets Game)")) {
+					SaveHighScoreToNativeFile(0);
+					resetQueued = 2;
+					showMenu = false;
+					setMenuMute(showMenu);
+					joysticks->Reset();
+				}
 
 			// if (ImGui::Checkbox("Use Any Joystick As Paddle", &use_any_joystick_as_paddle)){
 			// 	SavePreferences();
