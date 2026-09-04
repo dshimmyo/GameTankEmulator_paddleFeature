@@ -1,7 +1,7 @@
 "AppBuild"
 {
   "AppID" "1087090"                 
-  "Desc" "v1.1.1b mouse click support (fix2), rom visual update"
+  "Desc" "v1.1.2 persistent hiscore"
   "ContentRoot" "../content/"
   "BuildOutput" "../output/"
 
