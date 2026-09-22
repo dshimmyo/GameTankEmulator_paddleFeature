@@ -685,7 +685,14 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2507) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
         return status;
-	} else if (address == 0x2508) { //unused/write-only address
+	} else if (address == 0x250A){ //wrapper byte
+		#ifdef WRAPPER_MODE
+		return 0x55;
+		#else
+		return 0;
+		#endif
+	}
+	else if (address == 0x2508) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
         if (paddleDetected) {//because now we can override paddle with mouse if we want
             // Tell the game: "This is a physical dial, not mouse, remap rotation"
