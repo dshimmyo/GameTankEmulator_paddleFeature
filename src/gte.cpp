@@ -774,7 +774,7 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 #endif
 
 	// Catch the game trying to "write" to the Gamepad 2 port
-    if (address == 0x2009) {
+    if (address == RECEIVE_PADDLE_MODE_ADDRESS) {
 #ifndef WASM_BUILD
         if (value == SIGNAL_PADDLE_MODE) {
 			romRequestedPaddle = true;
