@@ -132,7 +132,7 @@ bool romRequestedPaddle = false; // source of truth
 SDL_JoystickID dksPaddle_instanceID = -1;
 int32_t currentPaddleRawValue = 0;
 #define SIGNAL_PADDLE_MODE 0xA5
-#define RECEIVE_PADDLE_MODE_ADDRESS 0x2009 //memory location
+#define RECEIVE_PADDLE_MODE_ADDRESS 0x2509 //memory location
 
 // Keep a global or static pointer to track the currently open active joystick
 SDL_Joystick* active_paddle_handle = NULL;
@@ -682,7 +682,10 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
     }
 #endif
 
-	if (address == 0x2007) { //unused/write-only address
+	if (address == 0x2507) { //unused/write-only address
+		uint8_t status = 0x55; // Base "Emulator" ID
+        return status;
+	} else if (address == 0x2508) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
         if (paddleDetected) {//because now we can override paddle with mouse if we want
             // Tell the game: "This is a physical dial, not mouse, remap rotation"
