@@ -689,27 +689,29 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
 	if (address == 0x2507) { //unused/write-only address
 		uint8_t status = 0x55; // Base "Emulator" ID
         return status;
-	} else if (address == 0x250A){ //wrapper byte
-		#ifdef WRAPPER_MODE
-		return 0x55;
-		#else
-		return 0;
-		#endif
-	}
-	else if (address == 0x2508) { //unused/write-only address
+	} 
+	else if (address == 0x250A){ //wrapper byte
 		uint8_t status = 0x55; // Base "Emulator" ID
+		#ifndef WRAPPER_MODE
+		status = 0x00;
+		#endif
+		return status;
+	}
+	if (address == 0x2508) { //unused/write-only address
+		uint8_t status = 0b01010101;//0x55; // Base "Emulator" ID
         if (paddleDetected) {//because now we can override paddle with mouse if we want
             // Tell the game: "This is a physical dial, not mouse, remap rotation"
             status |= 0x02; //01010101
         } 
-		if (paddle_emulation_enabled){
+		if (paddle_emulation_enabled || !paddleDetected){
 			status |= 0x08; //
 		}
 		if (dksPaddleDetected) {
 			status |= 0x20; //32 specifically my paddle, used for unlocking demo
 		}
         return status;
-	} else if(address & 0x8000) {
+	} 
+	if(address & 0x8000) {
 		switch(loadedRomType) {
 			case RomType::EEPROM8K:
 			return cartridge_state.rom[address & 0x1FFF];
@@ -796,9 +798,8 @@ void MemoryWrite(uint16_t address, uint8_t value) {
 			romRequestedPaddle = false;
         }
 #endif
-        return; // Absorb the write cycle
-    }
-	else if(address & 0x8000) {
+    } else
+	if(address & 0x8000) {
 		if(loadedRomType == RomType::FLASH2M_RAM32K) {
 			if(!(address & 0x4000)) {
 				if(!(cartridge_state.bank_mask & 0x80)) {
