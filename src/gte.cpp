@@ -680,6 +680,10 @@ uint8_t MemoryReadResolve(const uint16_t address, bool stateful) {
     if (address == 0x2405) {
         return HasValidSaveFileOnDisk() ? 0x01 : 0x00;
     }
+#else
+	if (address == 0x2405) {//might as well return a value and avoid warnings
+        return 0;
+    }
 #endif
 
 	if (address == 0x2507) { //unused/write-only address
