@@ -1988,7 +1988,7 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 				if (SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_FALSE);
 			} else {
 				// Not in menu? Ensure the mouse is captured
-				if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);
+				if (!SDL_GetRelativeMouseMode()) SDL_SetRelativeMouseMode(SDL_TRUE);//hides cursor
 				
 				int dx, dy;
 				SDL_GetRelativeMouseState(&dx, &dy);
@@ -2178,7 +2178,8 @@ if (romRequestedPaddle){ //master switch for paddle behavior
 				} 
 				else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
 					if (paddle_emulation_enabled && !paddle_touch_mode) {
-						SDL_SetRelativeMouseMode(SDL_TRUE);
+						if (!showMenu) SDL_SetRelativeMouseMode(SDL_TRUE);
+						else SDL_SetRelativeMouseMode(SDL_FALSE);
 					}
 				}
 
@@ -2435,7 +2436,8 @@ int main(int argC, char* argV[]) {
 	}
 	AdjustDisplayForSteam(mainWindow);
 	if (paddle_emulation_enabled) {
-		SDL_SetRelativeMouseMode(SDL_TRUE);//enforce mouse control when requested
+		if (!showMenu) SDL_SetRelativeMouseMode(SDL_TRUE);//enforce mouse control when requested
+		else SDL_SetRelativeMouseMode(SDL_FALSE);
 	}
 #ifndef WASM_BUILD
 	main_imgui_ctx = ImGui::CreateContext();
