@@ -28,8 +28,9 @@ typedef struct ACPState {
 	int volume;
 	bool isMuted;
 	bool isEmulationPaused;
-	int fade_in_samples;
-	int fade_in_total;
+	float fade_gain;
+	float fade_target;
+	float fade_step;
 } ACPState;
 
 class AudioCoprocessor {
@@ -47,4 +48,6 @@ public:
 	void dump_ram(const char* filename);
 	uint16_t get_irq_cycle_count();
 	static void fill_audio(void *udata, uint8_t *stream, int len);
+	void FadeIn();
+	void FadeOut();
 };

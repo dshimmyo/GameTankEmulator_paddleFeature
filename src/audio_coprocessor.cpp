@@ -20,6 +20,11 @@ void AudioCoprocessor::register_write(uint16_t address, uint8_t value) {
 		case ACP_RESET:
 			state.resetting = true;
             state.irqCounter = 255;
+            SDL_LockAudioDevice(state.device);
+            state.fade_gain = 0.0f;
+            state.fade_target = 1.0f;
+            state.fade_step = 1.0f / 882.0f;
+            SDL_UnlockAudioDevice(state.device);
             break;
 		case ACP_NMI:
             SDL_LockAudioDevice(state.device);
@@ -78,17 +83,25 @@ void AudioCoprocessor::fill_audio(void *udata, uint8_t *stream, int len) {
             }
         }
     }
-    if (state->fade_in_samples > 0 && state->fade_in_total > 0 && stream16 != NULL) {
+    if (state->fade_gain != state->fade_target && stream16 != NULL) {
         int16_t *samples = reinterpret_cast<int16_t *>(stream);
         int count = len / sizeof(int16_t);
 
-        for (int i = 0; i < count && state->fade_in_samples > 0; ++i) {
-            float gain = 1.0f - (static_cast<float>(state->fade_in_samples) / state->fade_in_total);
-            samples[i] = static_cast<int16_t>(samples[i] * gain);
-            state->fade_in_samples--;
+        for (int i = 0; i < count && state->fade_gain != state->fade_target; ++i) {
+            if (state->fade_gain < state->fade_target) {
+                state->fade_gain += state->fade_step;
+                if (state->fade_gain > state->fade_target) {
+                    state->fade_gain = state->fade_target;
+                }
+            } else {
+                state->fade_gain -= state->fade_step;
+                if (state->fade_gain < state->fade_target) {
+                    state->fade_gain = state->fade_target;
+                }
+            }
+            samples[i] = static_cast<int16_t>(samples[i] * state->fade_gain);
         }
     }
-
 }
 
 ACPState* AudioCoprocessor::singleton_acp_state;
@@ -158,11 +171,26 @@ void AudioCoprocessor::StartAudio() {
         printf("Opened audio device:\n\tFreq: %d\n\tFormat %s\n\tChannels: %d\n\tSamples: %d\n",
             obtained.freq, AudioFormatString(obtained.format), obtained.channels, obtained.samples);
         state.clksPerHostSample = 315000000 / (88 * obtained.freq);
-        state.fade_in_total = obtained.freq / 50; // 20ms ramp
-        state.fade_in_samples = state.fade_in_total;
+        int fade_samples = obtained.freq / 50; // 20ms ramp
+        state.fade_step = (fade_samples > 0) ? (1.0f / fade_samples) : 1.0f;
+        state.fade_gain = 0.0f;
+        state.fade_target = 1.0f;
         SDL_PauseAudioDevice(state.device, 0);
     }
 }
+
+void AudioCoprocessor::FadeIn() {
+    SDL_LockAudioDevice(state.device);
+    state.fade_target = 1.0f;
+    SDL_UnlockAudioDevice(state.device);
+}
+
+void AudioCoprocessor::FadeOut() {
+    SDL_LockAudioDevice(state.device);
+    state.fade_target = 0.0f;
+    SDL_UnlockAudioDevice(state.device);
+}
+
 
 AudioCoprocessor::AudioCoprocessor() {
 	AudioCoprocessor::singleton_acp_state = &state;
@@ -181,6 +209,9 @@ AudioCoprocessor::AudioCoprocessor() {
     state.isMuted = false;
     state.isEmulationPaused = true;
     state.clkMult = 4;
+    state.fade_gain = 0.0f;
+    state.fade_target = 1.0f;
+    state.fade_step = 1.0f / 882.0f;
 
 	for(int i = 0; i < AUDIO_RAM_SIZE; i ++) {
 		state.ram[i] = rand() % 256;
